@@ -28,7 +28,7 @@ return {
     lazy = false,
     priority = 1000,
     opts = {
-      style = "deeper", -- "dark", "darker", "cool", "deep", "warm", "warmer"
+      style = "deep", -- "dark", "darker", "cool", "deep", "warm", "warmer"
       transparent = false,
       term_colors = true,
       code_style = {
