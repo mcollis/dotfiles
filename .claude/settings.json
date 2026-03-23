@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "additionalDirectories": [
+      "/tmp",
+      "/home/michaelco/.claude"
+    ]
+  },
+  "model": "global.anthropic.claude-opus-4-6-v1",
+  "alwaysThinkingEnabled": true,
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh",
+    "padding": 0
+  }
+}
