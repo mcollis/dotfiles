@@ -67,6 +67,20 @@ fi
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
+# --- zoxide ---
+# Auto-install zoxide if not present
+if ! command -v zoxide &> /dev/null; then
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    echo "Installing zoxide via Homebrew..."
+    brew install zoxide
+  elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    echo "Installing zoxide via apt..."
+    sudo apt-get update && sudo apt-get install -y zoxide
+  fi
+fi
+
+eval "$(zoxide init zsh)"
+
 # --- Aliases ---
 alias v="nvim"
 alias c="clear"

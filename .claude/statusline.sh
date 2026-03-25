@@ -13,11 +13,11 @@ COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0')
 PCT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | cut -d. -f1)
 DURATION_MS=$(echo "$input" | jq -r '.cost.total_duration_ms // 0')
 
-# Catppuccin Mocha
-CYAN='\033[38;2;116;199;236m'    # Sapphire
-GREEN='\033[38;2;166;227;161m'   # Green
-YELLOW='\033[38;2;249;226;175m'  # Yellow
-RED='\033[38;2;243;139;168m'     # Red
+# Terminal ANSI colors
+BLUE='\033[34m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+RED='\033[31m'
 RESET='\033[0m'
 
 # Pick bar color based on context usage
@@ -39,6 +39,6 @@ SECS=$((TOTAL_SECS % 60))
 BRANCH=""
 git rev-parse --git-dir > /dev/null 2>&1 && BRANCH=" | 🌿 $(git branch --show-current 2>/dev/null)"
 
-echo -e "${CYAN}[$MODEL]${RESET} 📁 ${DIR##*/}$BRANCH"
+echo -e "${BLUE}[$MODEL]${RESET} 📁 ${DIR##*/}$BRANCH"
 COST_FMT=$(printf '$%.2f' "$COST")
 echo -e "${BAR_COLOR}${BAR}${RESET} ${PCT}% | ${YELLOW}${COST_FMT}${RESET} | ⏱️ $([ "$HOURS" -gt 0 ] && echo "${HOURS}h ")${MINS}m ${SECS}s"
