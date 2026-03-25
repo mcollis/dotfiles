@@ -1,3 +1,11 @@
 .config/nvim/LICENSE
 .config/nvim/README.md
 .config/nvim/lazy-lock.json
+.claude/backups/
+.claude/cache/
+.claude/file-history/
+.claude/history.jsonl
+.claude/plugins/
+.claude/projects/
+.claude/sessions/
+.claude/shell-snapshots/
