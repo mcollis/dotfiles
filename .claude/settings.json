@@ -1,5 +1,8 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(/home/michaelco/.claude/skills/:*)"
+    ],
     "additionalDirectories": [
       "/tmp",
       "/home/michaelco/.claude"

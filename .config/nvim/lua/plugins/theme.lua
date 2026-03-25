@@ -2,7 +2,7 @@ return {
   {
     "catppuccin/nvim",
     name = "catppuccin",
-    priority = 1000,
+    lazy = true,
     opts = {
       flavour = "mocha",
       transparent_background = false,
@@ -11,8 +11,7 @@ return {
   },
   {
     "folke/tokyonight.nvim",
-    lazy = false,
-    priority = 1000,
+    lazy = true,
     opts = {
       style = "night", -- "storm", "moon", "night", "day"
       transparent = false,
