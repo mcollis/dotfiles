@@ -1,0 +1,22 @@
+# theme = One Dark Two
+theme = Catppuccin Mocha
+# theme = Atom One Dark
+# theme = Dracula
+
+# Smooth out the edges
+window-decoration = false
+window-padding-x = 10
+window-padding-y = 10
+
+# Slight transparency
+background-opacity = 0.9
+background-blur-radius = 20
+
+# Use a Nerd Font for icons
+font-family = "JetBrainsMono Nerd Font Mono"
+font-size = 14
+font-thicken = true 
+adjust-cell-height = 1 
+
+mouse-shift-capture = always
+window-decoration = client
