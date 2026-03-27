@@ -61,7 +61,7 @@ set -gq  @powerline-color-grey-6 colour7
 # Powerline options
 set -gqF  @powerline-color-activity-1 "#{@powerline-color-main-3}"
 set -gqF  @powerline-status-bg "#{@powerline-color-grey-1}"
-set -gqF  @powerline-status-fg "#{@powerline-color-grey-4}"
+set -gq   @powerline-status-fg colour246
 set -gqF  @powerline-status-left-area-left-bg "#{@powerline-color-main-1}"
 set -gqF  @powerline-status-left-area-left-fg "#{@powerline-color-black-1}"
 set -gq   @powerline-status-left-area-middle-bg colour5
