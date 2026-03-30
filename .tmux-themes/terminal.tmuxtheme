@@ -93,7 +93,7 @@ set -gqF  @theme-mode-fg "#{@powerline-color-black-1}"
 set -gq   @theme-pane-active-border-bg default
 set -gq   @theme-pane-active-border-fg colour5
 set -gq   @theme-pane-border-bg default
-set -gqF  @theme-pane-border-fg "#{@powerline-color-grey-3}"
+set -gq   @theme-pane-border-fg colour238
 set -gqF  @theme-status-bg "#{@powerline-status-bg}"
 set -gqF  @theme-status-fg "#{@powerline-status-fg}"
 set -gq   @theme-status-interval 1
