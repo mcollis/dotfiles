@@ -15,8 +15,8 @@ set -gq  @themepack-status-left-area-right-format "#I:#P"
 set -gq  @themepack-status-right-area-left-format "%H:%M:%S"
 set -gq  @themepack-status-right-area-middle-format "%d-%b-%y"
 set -gq  @themepack-status-right-area-right-format "#H"
-set -gq  @themepack-window-status-current-format "#I:#W#F"
-set -gq  @themepack-window-status-format "#I:#W#F"
+set -gq  @themepack-window-status-current-format "#I  #{?#{@wl},#{@wl}  ,}#W#{?#{@wr},  #{@wr},}"
+set -gq  @themepack-window-status-format "#I:#{?#{@wl},#{@wl} ,}#W#{?#{@wr}, #{@wr},}"
 
 # Customizable prefixes and suffixes for @themepack-* format options
 set -gq  @themepack-status-left-area-left-prefix ""
@@ -71,7 +71,7 @@ set -gqF  @powerline-status-left-area-right-fg "#{@powerline-color-black-1}"
 set -gqF  @powerline-status-left-bg "#{@powerline-color-grey-1}"
 set -gq   @powerline-status-left-fg colour7
 set -gqF  @powerline-status-right-area-left-bg "#{@powerline-color-grey-4}"
-set -gq   @powerline-status-right-area-left-fg colour7
+set -gq   @powerline-status-right-area-left-fg colour252
 set -gq   @powerline-status-right-area-middle-bg colour3
 set -gqF  @powerline-status-right-area-middle-fg "#{@powerline-color-black-1}"
 set -gq   @powerline-status-right-area-right-bg colour2
@@ -112,7 +112,7 @@ set -gq   @theme-window-status-separator ""
 set -gq   @theme-window-status-current-bg colour4
 set -gqF  @theme-window-status-current-fg "#{@powerline-color-black-1}"
 set -gqF  @theme-window-status-format "  #{@themepack-window-status-format}  "
-set -gqF  @theme-window-status-current-format "#[fg=#{@theme-window-status-current-bg},bg=default,reverse]#[noreverse,fg=#{@theme-window-status-current-fg},bg=#{@theme-window-status-current-bg},nobold] #{@themepack-window-status-current-format} #[fg=#{@theme-window-status-current-bg},bg=default,reverse,nobold]"
+set -gqF  @theme-window-status-current-format "#[fg=#{@theme-window-status-current-bg},bg=default,reverse]#[noreverse,fg=#{@theme-window-status-current-fg},bg=#{@theme-window-status-current-bg},nobold] #{@themepack-window-status-current-format} #[fg=#{@theme-window-status-current-bg},bg=default,reverse,nobold]"
 
 # Customizable prefixes and suffixes for @theme-* format options
 set -gq  @theme-status-left-prefix ""
@@ -137,10 +137,10 @@ set -gF  message-command-style "fg=#{@theme-message-command-fg},bg=#{@theme-mess
 set -gF  message-style "fg=#{@theme-message-fg},bg=#{@theme-message-bg}"
 set -gF  status-interval "#{@theme-status-interval}"
 set -gF  status-justify "#{@theme-status-justify}"
-set -gF  status-left "#{@theme-status-left}"
+set -g   status-left "#[fg=colour0]#[bg=colour4]#[bold] #S #[fg=colour4]#[bg=colour0]#[nobold]#[fg=colour0]#[bg=colour5]#[fg=colour0]#[bg=colour5] #(whoami) #[fg=colour5]#[bg=colour0]#[fg=colour0]#[bg=colour14]#[fg=colour0]#[bg=colour14] #I:#P #[fg=colour14]#[bg=default]"
 set -gF  status-left-length "#{@theme-status-left-length}"
 set -gF  status-left-style "fg=#{@theme-status-left-fg}"
-set -gF  status-right "#{@theme-status-right}"
+set -g   status-right "#[fg=colour8]#[bg=default]#[fg=colour252]#[bg=colour8] %H:%M:%S #[fg=colour0]#[bg=colour8]#[fg=colour3]#[bg=colour0]#[fg=colour0]#[bg=colour3] %d-%b-%y #[fg=colour0]#[bg=colour3]#[fg=colour2]#[bg=colour0]#[fg=colour0]#[bg=colour2]#[bold] #H "
 set -gF  status-right-length "#{@theme-status-right-length}"
 set -gF  status-right-style "fg=#{@theme-status-right-fg}"
 set -gF  status-style "fg=#{@theme-status-fg},bg=#{@theme-status-bg}"
@@ -150,7 +150,7 @@ set -gwF mode-style "fg=#{@theme-mode-fg},bg=#{@theme-mode-bg}"
 set -gwF pane-active-border-style "fg=#{@theme-pane-active-border-fg},bg=#{@theme-pane-active-border-bg}"
 set -gwF pane-border-style "fg=#{@theme-pane-border-fg},bg=#{@theme-pane-border-bg}"
 set -gwF window-status-activity-style "fg=#{@theme-window-status-activity-fg},bg=#{@theme-window-status-activity-bg}"
-set -gwF window-status-current-format "#{@theme-window-status-current-format}"
-set -gwF window-status-current-style "fg=#{@theme-window-status-current-fg}"
+set -gw  window-status-current-format "#[fg=colour8]#[bg=default]#[reverse]#[noreverse]#[fg=colour252]#[bg=colour8] #I #{?#{@wl},#[fg=colour8]#[bg=colour5]#[fg=colour0]#[bg=colour5] #{@wl} #[fg=colour5]#[bg=colour4],#[fg=colour8]#[bg=colour4]}#[fg=colour0]#[bg=colour4] #W #{?#{@wr},#[fg=colour4]#[bg=colour3]#[fg=colour0]#[bg=colour3] #{@wr} #[fg=colour3]#[bg=default]#[reverse]#[noreverse],#[fg=colour4]#[bg=default]#[reverse]#[noreverse]}"
+# window-status-current-style omitted (multi-segment format handles colors)
 set -gwF window-status-format "#{@theme-window-status-format}"
 set -gwF window-status-separator "#{@theme-window-status-separator}"

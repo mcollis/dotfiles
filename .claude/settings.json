@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(/home/michaelco/.claude/skills/:*)"
+      "Bash(/home/michaelco/.claude/skills/*)",
+      "Bash(/home/michaelco/git/depot/.claude/skills/*)"
     ],
     "additionalDirectories": [
       "/tmp",
@@ -14,5 +15,6 @@
     "command": "~/.claude/statusline.sh",
     "padding": 0
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "tui": "fullscreen"
 }
