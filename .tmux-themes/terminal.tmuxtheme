@@ -150,7 +150,7 @@ set -gwF mode-style "fg=#{@theme-mode-fg},bg=#{@theme-mode-bg}"
 set -gwF pane-active-border-style "fg=#{@theme-pane-active-border-fg},bg=#{@theme-pane-active-border-bg}"
 set -gwF pane-border-style "fg=#{@theme-pane-border-fg},bg=#{@theme-pane-border-bg}"
 set -gwF window-status-activity-style "fg=#{@theme-window-status-activity-fg},bg=#{@theme-window-status-activity-bg}"
-set -gw  window-status-current-format "#[fg=colour8]#[bg=default]#[reverse]#[noreverse]#[fg=colour252]#[bg=colour8] #I #{?#{@wl},#[fg=colour8]#[bg=colour5]#[fg=colour0]#[bg=colour5] #{@wl} #[fg=colour5]#[bg=colour4],#[fg=colour8]#[bg=colour4]}#[fg=colour0]#[bg=colour4] #W #{?#{@wr},#[fg=colour4]#[bg=colour3]#[fg=colour0]#[bg=colour3] #{@wr} #[fg=colour3]#[bg=default]#[reverse]#[noreverse],#[fg=colour4]#[bg=default]#[reverse]#[noreverse]}"
+set -gw  window-status-current-format "#[fg=colour8]#[bg=default]#[fg=colour252]#[bg=colour8] #I #{?#{@wl},#[fg=colour8]#[bg=colour0]#[fg=colour0]#[bg=colour5]#[fg=colour0]#[bg=colour5] #{@wl} #[fg=colour5]#[bg=colour0]#[fg=colour0]#[bg=colour4],#[fg=colour8]#[bg=colour0]#[fg=colour0]#[bg=colour4]}#[fg=colour0]#[bg=colour4]  #W  #{?#{@wr},#[fg=colour0]#[bg=colour4]#[fg=colour3]#[bg=colour0]#[fg=colour0]#[bg=colour3] #{@wr} #[fg=colour3]#[bg=default],#[fg=colour4]#[bg=default]}"
 # window-status-current-style omitted (multi-segment format handles colors)
 set -gwF window-status-format "#{@theme-window-status-format}"
 set -gwF window-status-separator "#{@theme-window-status-separator}"
