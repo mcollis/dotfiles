@@ -81,6 +81,10 @@ fi
 
 eval "$(zoxide init zsh)"
 
+# --- direnv ---
+export DIRENV_LOG_FORMAT=""
+command -v direnv > /dev/null && eval "$(direnv hook zsh)"
+
 # --- Aliases ---
 alias v="nvim"
 alias c="clear"
