@@ -1,20 +1,38 @@
 {
   "permissions": {
     "allow": [
-      "Bash(/home/michaelco/.claude/skills/*)",
-      "Bash(/home/michaelco/git/depot/.claude/skills/*)"
+      "Bash(/home/michaelco/.claude/skills/*/run.sh *)",
+      "Bash(/home/michaelco/.claude/plugins/worktree/skills/*/run.sh *)",
+      "Bash(jira-cli issue view *)",
+      "Bash(jira-cli issue list *)",
+      "Read(/tmp/**)",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_take_screenshot"
     ],
     "additionalDirectories": [
       "/tmp",
       "/home/michaelco/.claude"
     ]
   },
-  "model": "us.anthropic.claude-opus-4-6-v1",
+  "model": "us.anthropic.claude-opus-4-7",
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh",
     "padding": 0
   },
+  "enabledPlugins": {
+    "worktree@local": true
+  },
+  "extraKnownMarketplaces": {
+    "local": {
+      "source": {
+        "source": "directory",
+        "path": "/home/michaelco/.claude/plugins"
+      }
+    }
+  },
   "alwaysThinkingEnabled": true,
-  "tui": "fullscreen"
+  "tui": "fullscreen",
+  "theme": "dark-ansi",
+  "teammateMode": "auto"
 }
