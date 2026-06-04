@@ -1,0 +1,48 @@
+# direnvrc — Mike Collis
+#
+# Provides update_labels() for .envrc files to call AT THE END
+# (after exports are defined, so UI_PORT/TICKET_ID are visible).
+#
+# Reads:
+#   TICKET_ID  → tmux window label @wl (falls back to current branch name)
+#   UI_PORT    → tmux right label @wr
+#
+# Exports (for shells, hooks, skills):
+#   WEBPACK_LOG     /tmp/depot-webpack-<slug>.log
+#   WEBPACK_PIDFILE /tmp/depot-webpack-<slug>.pid
+#
+# Sets per-window tmux state:
+#   @wl, @wr, @pidfile (generic — tmux renders a liveness marker if the
+#                       pid in this file is alive)
+
+update_labels() {
+    local slug="${TICKET_ID:-}"
+    if [ -z "$slug" ]; then
+        local br
+        br=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-')
+        if [ -n "$br" ] && [ "$br" != "HEAD" ]; then
+            slug="$br"
+        else
+            slug=$(basename "$PWD")
+        fi
+    fi
+    export WEBPACK_LOG="/tmp/depot-webpack-${slug}.log"
+    export WEBPACK_PIDFILE="/tmp/depot-webpack-${slug}.pid"
+
+    [ -z "${TMUX:-}" ] && return 0
+
+    local label="${TICKET_ID:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)}"
+    if [ -n "$label" ]; then
+        tmux set-option -w @wl "$label" 2>/dev/null || true
+    else
+        tmux set-option -wu @wl 2>/dev/null || true
+    fi
+
+    if [ -n "${UI_PORT:-}" ]; then
+        tmux set-option -w @wr "$UI_PORT" 2>/dev/null || true
+    else
+        tmux set-option -wu @wr 2>/dev/null || true
+    fi
+
+    tmux set-option -w @pidfile "$WEBPACK_PIDFILE" 2>/dev/null || true
+}
