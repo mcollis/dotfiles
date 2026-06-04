@@ -1,4 +1,5 @@
 # Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
@@ -91,6 +92,18 @@ alias c="clear"
 
 # --- Functions ---
 
+# Fast-forward the current repo's HEAD branch from origin. Useful in a bare
+# repo whose HEAD points at a base branch (e.g. release/<codename>) you never
+# check out — keeps it in sync without needing a worktree.
+gfh() {
+    local hb
+    hb=$(git symbolic-ref --short HEAD 2>/dev/null) || {
+        echo "gfh: HEAD is detached" >&2
+        return 1
+    }
+    git fetch origin "$hb:$hb"
+}
+
 kill-vscode-watchers() {
     for pid in $(ps aux | grep "vscode.*fileWatcher" | grep -v grep | awk '{print $2}'); do
         echo "Killing file watcher PID $pid"
@@ -98,8 +111,24 @@ kill-vscode-watchers() {
     done
 }
 
+# Tail the webpack-dev-server log. Path comes from $WEBPACK_LOG (set by direnv).
+wptail() {
+    if [ -z "${WEBPACK_LOG:-}" ]; then
+        echo "wptail: \$WEBPACK_LOG not set — cd into a worktree with .envrc loaded" >&2
+        return 1
+    fi
+    if [ ! -f "$WEBPACK_LOG" ]; then
+        echo "wptail: no log at $WEBPACK_LOG (start webpack with /start-webpack in Claude)" >&2
+        return 1
+    fi
+    echo "Tailing $WEBPACK_LOG"
+    tail -F "$WEBPACK_LOG"
+}
+
 # --- Powerlevel10k ---
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # opencode
 export PATH=/home/michaelco/.opencode/bin:$PATH
+
+if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
