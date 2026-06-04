@@ -1,0 +1,37 @@
+gui:
+  nerdFontsVersion: "3"
+  showFileTree: true
+  showRandomTip: false
+  showCommandLog: false
+  scrollHeight: 4
+  sidePanelWidth: 0.3
+  mainPanelSplitMode: "flexible"
+  filterMode: "fuzzy"
+  skipDiscardChangeWarning: false
+
+git:
+  pagers:
+    - colorArg: always
+      pager: delta --dark --paging=never
+  parseEmoji: true
+  autoFetch: true
+
+os:
+  editPreset: "nvim"
+
+# Custom keybinds / commands.
+# Stock keys are kept; these add to them.
+customCommands:
+  # Interactive rebase onto the branch you choose (off local branches list).
+  - key: "R"
+    context: "localBranches"
+    description: "Interactive rebase onto selected branch"
+    command: "git rebase -i --autosquash {{.SelectedLocalBranch.Name}}"
+    output: terminal
+
+  # Push to your personal review ref (mirrors your `git review` alias).
+  - key: "V"
+    context: "localBranches"
+    description: "Push branch to user/$USER/<branch> for review"
+    command: "git push -u origin {{.SelectedLocalBranch.Name}}:user/$USER/{{.SelectedLocalBranch.Name}} --force"
+    output: terminal

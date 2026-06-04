@@ -16,7 +16,7 @@ set -gq  @themepack-status-right-area-left-format "%H:%M:%S"
 set -gq  @themepack-status-right-area-middle-format "%d-%b-%y"
 set -gq  @themepack-status-right-area-right-format "#H"
 set -gq  @themepack-window-status-current-format "#I  #{?#{@wl},#{@wl}  ,}#W#{?#{@wr},  #{@wr},}"
-set -gq  @themepack-window-status-format "#I:#{?#{@wl},#{@wl} ,}#W#{?#{@wr}, #{@wr},}"
+set -gq  @themepack-window-status-format "#I:#{?#{@wl},#{@wl} ,}#W#{?#{@wr}, #{@wr}#(~/.tmux-themes/pidfile-alive.sh '#{@pidfile}' '*'),}"
 
 # Customizable prefixes and suffixes for @themepack-* format options
 set -gq  @themepack-status-left-area-left-prefix ""
@@ -150,7 +150,7 @@ set -gwF mode-style "fg=#{@theme-mode-fg},bg=#{@theme-mode-bg}"
 set -gwF pane-active-border-style "fg=#{@theme-pane-active-border-fg},bg=#{@theme-pane-active-border-bg}"
 set -gwF pane-border-style "fg=#{@theme-pane-border-fg},bg=#{@theme-pane-border-bg}"
 set -gwF window-status-activity-style "fg=#{@theme-window-status-activity-fg},bg=#{@theme-window-status-activity-bg}"
-set -gw  window-status-current-format "#[fg=colour8]#[bg=default]#[fg=colour252]#[bg=colour8] #I #{?#{@wl},#[fg=colour8]#[bg=colour0]#[fg=colour0]#[bg=colour5]#[fg=colour0]#[bg=colour5] #{@wl} #[fg=colour5]#[bg=colour0]#[fg=colour0]#[bg=colour4],#[fg=colour8]#[bg=colour0]#[fg=colour0]#[bg=colour4]}#[fg=colour0]#[bg=colour4]  #W  #{?#{@wr},#[fg=colour0]#[bg=colour4]#[fg=colour3]#[bg=colour0]#[fg=colour0]#[bg=colour3] #{@wr} #[fg=colour3]#[bg=default],#[fg=colour4]#[bg=default]}"
+set -gw  window-status-current-format "#[fg=colour8]#[bg=default]#[fg=colour252]#[bg=colour8] #I #{?#{@wl},#[fg=colour8]#[bg=colour0]#[fg=colour0]#[bg=colour5]#[fg=colour0]#[bg=colour5] #{@wl} #[fg=colour5]#[bg=colour0]#[fg=colour0]#[bg=colour4],#[fg=colour8]#[bg=colour0]#[fg=colour0]#[bg=colour4]}#[fg=colour0]#[bg=colour4]  #W  #{?#{@wr},#[fg=colour0]#[bg=colour4]#[fg=colour3]#[bg=colour0]#[fg=colour0]#[bg=colour3] #{@wr}#(~/.tmux-themes/pidfile-alive.sh '#{@pidfile}' '*') #[fg=colour3]#[bg=default],#[fg=colour4]#[bg=default]}"
 # window-status-current-style omitted (multi-segment format handles colors)
 set -gwF window-status-format "#{@theme-window-status-format}"
 set -gwF window-status-separator "#{@theme-window-status-separator}"
