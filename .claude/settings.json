@@ -1,27 +1,100 @@
 {
   "permissions": {
     "allow": [
-      "Bash(/home/michaelco/.claude/skills/*/run.sh *)",
-      "Bash(/home/michaelco/.claude/plugins/worktree/skills/*/run.sh *)",
-      "Bash(jira-cli issue view *)",
-      "Bash(jira-cli issue list *)",
+      "Skill(commit-message)",
+      "Skill(docker-prune)",
+      "Skill(playwright-cli)",
+      "Skill(ex:code-review)",
+      "Skill(ex:gitlab)",
+      "Skill(ex:jira)",
+      "Skill(ex:jira-quarter)",
+      "Skill(ex:reviewers)",
+      "Skill(ex:worktree-prune)",
+      "Skill(update-config)",
+      "Skill(keybindings-help)",
+      "Skill(simplify)",
+      "Skill(fewer-permission-prompts)",
+      "Skill(loop)",
+      "Skill(claude-api)",
+      "Skill(init)",
+      "Skill(review)",
+      "Skill(security-review)",
+      "Bash(glab mr list*)",
+      "Bash(glab mr view*)",
+      "Bash(glab mr note list*)",
+      "Bash(glab mr checks*)",
+      "Bash(glab mr diff*)",
+      "Bash(glab issue list*)",
+      "Bash(glab issue view*)",
+      "Bash(jira-cli issue view*)",
+      "Bash(jira-cli issue list*)",
+      "Bash(jira-cli sprint list*)",
       "Read(/tmp/**)",
+      "Bash(playwright-cli *)",
       "mcp__playwright__browser_snapshot",
       "mcp__playwright__browser_take_screenshot"
     ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git -C * commit*)",
+      "Bash(git push*)",
+      "Bash(git -C * push*)",
+      "Bash(git rebase*)",
+      "Bash(git -C * rebase*)",
+      "Bash(git reset --hard*)",
+      "Bash(git -C * reset --hard*)",
+      "Bash(git branch -D*)",
+      "Bash(git -C * branch -D*)",
+      "Bash(git branch -d*)",
+      "Bash(git -C * branch -d*)",
+      "Bash(git tag -d*)",
+      "Bash(git tag --delete*)",
+      "Bash(git -C * tag -d*)",
+      "Bash(git worktree*)",
+      "Bash(git -C * worktree*)",
+      "Bash(glab mr create*)",
+      "Bash(glab mr merge*)",
+      "Bash(glab mr close*)",
+      "Bash(glab mr note create*)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh pr close*)",
+      "Bash(gh issue create*)",
+      "Bash(gh issue close*)"
+    ],
     "additionalDirectories": [
       "/tmp",
-      "/home/michaelco/.claude"
+      "/home/michaelco/.claude",
+      "/home/michaelco/.local/share/direnv",
+      "/home/michaelco/dotfiles",
+      "/home/michaelco/git/depot.git",
+      "/home/michaelco/git/depot-worktrees",
+      "/run"
     ]
   },
-  "model": "us.anthropic.claude-opus-4-7",
+  "model": "opusplan",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/michaelco/.claude/hooks/validate-commit-message.sh",
+            "if": "Bash(git commit *)",
+            "timeout": 10000
+          }
+        ]
+      }
+    ]
+  },
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh",
     "padding": 0
   },
   "enabledPlugins": {
-    "worktree@local": true
+    "ex@local": true
   },
   "extraKnownMarketplaces": {
     "local": {
@@ -31,7 +104,93 @@
       }
     }
   },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "gitlab.i.extrahop.com",
+        "jira.i.extrahop.com",
+        "github.com",
+        "*.github.com",
+        "localhost",
+        "127.0.0.1",
+        "*.aws.engops.i.extrahop.com"
+      ],
+      "allowAllUnixSockets": true,
+      "allowLocalBinding": true
+    },
+    "filesystem": {
+      "allowWrite": [
+        "/run/docker.sock",
+        "/home/michaelco/.cache/ms-playwright"
+      ]
+    },
+    "excludedCommands": [
+      "git commit",
+      "git commit *",
+      "git push",
+      "git push *",
+      "git rebase",
+      "git rebase *",
+      "git reset --hard",
+      "git reset --hard *",
+      "git branch -D",
+      "git branch -D *",
+      "git tag -d",
+      "git tag -d *",
+      "git tag --delete",
+      "git tag --delete *",
+      "git -C * commit",
+      "git -C * commit *",
+      "git -C * push",
+      "git -C * push *",
+      "git -C * rebase",
+      "git -C * rebase *",
+      "git -C * reset --hard",
+      "git -C * reset --hard *",
+      "git -C * branch -D",
+      "git -C * branch -D *",
+      "git branch -d",
+      "git branch -d *",
+      "git -C * branch -d",
+      "git -C * branch -d *",
+      "git worktree",
+      "git worktree *",
+      "git -C * worktree",
+      "git -C * worktree *",
+      "/home/michaelco/.claude/skills/*/run.sh",
+      "/home/michaelco/.claude/skills/*/run.sh *",
+      "/home/michaelco/.claude/plugins/*/skills/*/run.sh",
+      "/home/michaelco/.claude/plugins/*/skills/*/run.sh *",
+      "/home/michaelco/git/depot-worktrees/*/.claude/skills/*/run.sh",
+      "/home/michaelco/git/depot-worktrees/*/.claude/skills/*/run.sh *",
+      "glab mr create",
+      "glab mr create *",
+      "glab mr merge",
+      "glab mr merge *",
+      "glab mr close",
+      "glab mr close *",
+      "glab mr note create",
+      "glab mr note create *",
+      "gh pr create",
+      "gh pr create *",
+      "gh pr merge",
+      "gh pr merge *",
+      "gh pr close",
+      "gh pr close *",
+      "gh issue create",
+      "gh issue create *",
+      "gh issue close",
+      "gh issue close *",
+      "playwright-cli",
+      "playwright-cli *"
+    ]
+  },
   "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
   "tui": "fullscreen",
   "theme": "dark-ansi",
   "teammateMode": "auto"
