@@ -10,6 +10,10 @@ worktree-path = "{{ repo_path }}/../{{ repo | replace('.git', '') }}-worktrees/{
 
 # ── CREATE: blocking, serial pipeline. Order: claude → exclude → envrc. ──────────
 # Conditionally copy canonical claude/ -> .claude (depot has it; updates does not -> no-op).
+# NOTE: the hook NAME "claude" is load-bearing — the ex:worktree-claude-sync skill
+# re-runs this exact hook on demand (`wt -C <wt> hook pre-start claude --yes`) as its
+# mirror step. Rename here = update the skill's run.sh too. The skill owns the
+# push-back gate; this hook owns the canonical→worktree copy (single source of truth).
 [[pre-start]]
 claude = """
 set -e
@@ -61,10 +65,39 @@ IDX=$(tmux list-windows -F '#{window_index} #{@wl}' | awk -v w="$WL" '$2==w{prin
 if [ -n "$IDX" ]; then
   tmux select-window -t "$IDX"
 else
-  tmux new-window -c "$WT" -n "$WL"
+  tmux new-window -c "$WT"
   tmux split-window -d -h -c "$WT"
 fi
 """
+
+# ── REMOVE: delegate to per-repo hook scripts (untracked, in <bare>/wt-hooks/). ──
+# Pre-remove: blocking — stops containers before the worktree is deleted.
+# Post-remove: background — closes the tmux window after removal.
+# Both are no-ops if the repo has no wt-hooks/ scripts.
+[[pre-remove]]
+cleanup = """
+REPO_PATH={{ repo_path }}
+WT={{ worktree_path }}
+[ -x "$REPO_PATH/wt-hooks/pre-remove.sh" ] && "$REPO_PATH/wt-hooks/pre-remove.sh" "$WT" "{{ branch }}" || true
+"""
+
+[[post-remove]]
+cleanup = """
+BRANCH={{ branch }}
+[ -n "${TMUX:-}" ] && {
+  TICKET=$(printf '%s' "$BRANCH" | grep -oiE '(ex|oz)-[0-9]+' | head -1 | tr 'a-z' 'A-Z' || true)
+  WL=${TICKET:-$BRANCH}
+  tmux list-windows -a -F '#{session_name}:#{window_index} #{@wl}' | awk -v w="$WL" '$2==w{print $1}' | while read -r IDX; do
+    tmux kill-window -t "$IDX" || true
+  done
+}
+REPO_PATH={{ repo_path }}
+[ -x "$REPO_PATH/wt-hooks/post-remove.sh" ] && "$REPO_PATH/wt-hooks/post-remove.sh" "{{ branch }}" || true
+"""
+
+[list]
+full = true
+branches = true
 
 # ── Alias: `wt ex EX-123` -> create the team-convention branch, stay in bare repo. ──
 [aliases]
