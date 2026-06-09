@@ -18,6 +18,10 @@ Rules:
 
 # Tools
 
+- Use `ast-grep` (installed at `~/.local/bin/ast-grep`; the `sg` alias collides with system `setgroups`, so always invoke `ast-grep`) for **structural code search and codemods** — anything matching syntax, not just text. Prefer it over `grep`/`rg` when searching for code patterns, call sites, JSX/props, or doing find-and-replace rewrites; it is AST-aware (skips comments/strings/imports) and metavariable-capturing.
+  - Search: `ast-grep run -p 'useEffect($$$ARGS)' -l tsx <path>`. Languages don't stack on one `-l`; run per-language (`-l ts`, then `-l tsx`) and combine. `--json=compact` for machine-readable output.
+  - Codemod (preview): `ast-grep run -p 'useState($INIT)' -r 'useState(() => $INIT)' -l tsx <path>` prints a diff and writes nothing; add `-U` to apply. Always review the preview before `-U`.
+  - Still use `rg` for plain-text/non-code matches (logs, config, prose, quick literal greps) — it's faster and sufficient there. ast-grep earns its keep on multiline, structural, and rewrite work.
 - Use `glab` CLI for all GitLab operations. **Always prefer `glab` over curling the GitLab API.** Only fall back to `curl` if `glab` genuinely cannot do what's needed. Default project: `core/depot`. Always pass `-R "https://gitlab.i.extrahop.com/<project-path>"`. Auth via `GITLAB_TOKEN` env var.
   - To resolve project from a URL: `https://gitlab.i.extrahop.com/core/hsm-automation/-/merge_requests/51` → `-R "https://gitlab.i.extrahop.com/core/hsm-automation"`, MR `51`
   - Use `glab mr note list` for MR comments/discussions — do NOT curl the API. Supports `--state unresolved`, `--type diff`, `--file <path>`, `-F json`.
