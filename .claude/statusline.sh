@@ -37,7 +37,9 @@ MINS=$(((TOTAL_SECS % 3600) / 60))
 SECS=$((TOTAL_SECS % 60))
 
 BRANCH=""
-git rev-parse --git-dir > /dev/null 2>&1 && BRANCH=" | 🌿 $(git branch --show-current 2>/dev/null)"
+if git rev-parse --git-dir > /dev/null 2>&1; then
+  BRANCH=" | 🌿 $(git branch --show-current 2>/dev/null)"
+fi
 
 echo -e "${BLUE}[$MODEL]${RESET} 📁 ${DIR##*/}$BRANCH"
 COST_FMT=$(printf '$%.2f' "$COST")

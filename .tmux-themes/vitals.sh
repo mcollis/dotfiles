@@ -41,9 +41,9 @@ MEM_BG=$(color_for "$mem_pct" 90 70)
 CPU_BG=$(color_for "$cpu_pct" 95 80)
 HOST_BG=colour4
 
-printf '#[fg=%s,bg=default]%s#[fg=colour0,bg=%s,bold] MEM %d%% ' \
+printf '#[fg=%s,bg=default]%s#[fg=colour0,bg=%s,bold] MEM %2d%% ' \
   "$MEM_BG" "$SEP" "$MEM_BG" "$mem_pct"
-printf '#[fg=colour0,bg=%s,nobold]%s#[fg=%s,bg=colour0]%s#[fg=colour0,bg=%s,bold] CPU %d%% ' \
+printf '#[fg=colour0,bg=%s,nobold]%s#[fg=%s,bg=colour0]%s#[fg=colour0,bg=%s,bold] CPU %2d%% ' \
   "$MEM_BG" "$SEP" "$CPU_BG" "$SEP" "$CPU_BG" "$cpu_pct"
 printf '#[fg=colour0,bg=%s,nobold]%s#[fg=%s,bg=colour0]%s#[fg=colour0,bg=%s,bold] #H ' \
   "$CPU_BG" "$SEP" "$HOST_BG" "$SEP" "$HOST_BG"
