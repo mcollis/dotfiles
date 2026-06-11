@@ -84,13 +84,11 @@ WT={{ worktree_path }}
 [[post-remove]]
 cleanup = """
 BRANCH={{ branch }}
-[ -n "${TMUX:-}" ] && {
-  TICKET=$(printf '%s' "$BRANCH" | grep -oiE '(ex|oz)-[0-9]+' | head -1 | tr 'a-z' 'A-Z' || true)
-  WL=${TICKET:-$BRANCH}
-  tmux list-windows -a -F '#{session_name}:#{window_index} #{@wl}' | awk -v w="$WL" '$2==w{print $1}' | while read -r IDX; do
-    tmux kill-window -t "$IDX" || true
-  done
-}
+TICKET=$(printf '%s' "$BRANCH" | grep -oiE '(ex|oz)-[0-9]+' | head -1 | tr 'a-z' 'A-Z' || true)
+WL=${TICKET:-$BRANCH}
+tmux list-windows -a -F '#{session_name}:#{window_index} #{@wl}' 2>/dev/null | awk -v w="$WL" '$2==w{print $1}' | while read -r IDX; do
+  tmux kill-window -t "$IDX" || true
+done
 REPO_PATH={{ repo_path }}
 [ -x "$REPO_PATH/wt-hooks/post-remove.sh" ] && "$REPO_PATH/wt-hooks/post-remove.sh" "{{ branch }}" || true
 """
