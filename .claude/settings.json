@@ -72,7 +72,7 @@
       "/run"
     ]
   },
-  "model": "opusplan",
+  "model": "opus",
   "hooks": {
     "PreToolUse": [
       {
@@ -85,6 +85,76 @@
             "timeout": 10000
           }
         ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.tmux-themes/claude-notify.sh waiting",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.tmux-themes/claude-notify.sh clear",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt|permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.tmux-themes/claude-notify.sh waiting",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.tmux-themes/claude-notify.sh clear",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.tmux-themes/claude-notify.sh clear",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.tmux-themes/claude-notify.sh clear",
+            "timeout": 5
+          }
+        ]
       }
     ]
   },
@@ -94,13 +164,20 @@
     "padding": 0
   },
   "enabledPlugins": {
-    "ex@local": true
+    "ex@local": true,
+    "worktrunk@worktrunk": true
   },
   "extraKnownMarketplaces": {
     "local": {
       "source": {
         "source": "directory",
         "path": "/home/michaelco/.claude/plugins"
+      }
+    },
+    "worktrunk": {
+      "source": {
+        "source": "github",
+        "repo": "max-sixty/worktrunk"
       }
     }
   },
@@ -161,6 +238,8 @@
       "git worktree *",
       "git -C * worktree",
       "git -C * worktree *",
+      "wt ex",
+      "wt ex *",
       "/home/michaelco/.claude/skills/*/run.sh",
       "/home/michaelco/.claude/skills/*/run.sh *",
       "/home/michaelco/.claude/plugins/*/skills/*/run.sh",
@@ -186,7 +265,9 @@
       "gh issue close",
       "gh issue close *",
       "playwright-cli",
-      "playwright-cli *"
+      "playwright-cli *",
+      "agent-browser",
+      "agent-browser *"
     ]
   },
   "alwaysThinkingEnabled": true,
