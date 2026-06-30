@@ -6,10 +6,10 @@
 #
 # Pairs with these ex skills:
 #   - ex:worktree-claude-sync  (re-runs the load-bearing `claude` pre-start hook by name)
-#   - ex:worktree-prune        (relies on the lowercase-slug worktree path + tmux @wl)
+#   - ex:worktree-prune        (relies on the lowercase-slug worktree path)
 #
 # Worktree location: sibling <repo>-worktrees/ dir, lowercase branch slug.
-# `| lower` is REQUIRED — prune's Docker/tmux scoping assumes lowercase dirs.
+# `| lower` is REQUIRED — prune's Docker scoping assumes lowercase dirs.
 # NOTE: this is a singleton key. If your config already sets worktree-path,
 # the installer will NOT add this line — reconcile by hand.
 worktree-path = "{{ repo_path }}/../{{ repo | replace('.git', '') }}-worktrees/{{ branch | sanitize | lower }}"
@@ -38,8 +38,9 @@ for e in '**/.claude' '.mcp.json' '.playwright-mcp' '.envrc'; do
 done
 """
 
-# Write .envrc (TICKET_ID parsed from branch + update_labels) and trust it with direnv.
-# Non-EX/OZ branches -> no TICKET_ID; update_labels falls back to a branch-derived slug.
+# Write .envrc (TICKET_ID parsed from branch) and trust it with direnv.
+# Non-EX/OZ branches -> no TICKET_ID. Personal/project additions (e.g. a tmux
+# labeling call, dev-server ports) belong in your own config or .envrc, not here.
 [[pre-start]]
 envrc = """
 set -e
@@ -48,14 +49,66 @@ BRANCH={{ branch }}
 TICKET=$(printf '%s' "$BRANCH" | grep -oiE '(ex|oz)-[0-9]+' | head -1 | tr 'a-z' 'A-Z' || true)
 {
   [ -n "$TICKET" ] && printf 'export TICKET_ID="%s"\\n' "$TICKET"
-  printf 'update_labels\\n'
 } > "$WT/.envrc"
 command -v direnv >/dev/null 2>&1 && direnv allow "$WT/.envrc" || true
 """
 
-# ── SWITCH: the single window-manager hook. Foreground, fires on create AND re-open. ──
-# With --no-cd, navigation is this hook's job: open the worktree's tmux window if missing,
-# else focus it. Matches against @wl (set by direnv update_labels on .envrc load).
+# ── REMOVE: delegate to per-repo hook scripts (untracked, in <bare>/wt-hooks/). ──
+[[pre-remove]]
+cleanup = """
+REPO_PATH={{ repo_path }}
+WT={{ worktree_path }}
+[ -x "$REPO_PATH/wt-hooks/pre-remove.sh" ] && "$REPO_PATH/wt-hooks/pre-remove.sh" "$WT" "{{ branch }}" || true
+"""
+
+[[post-remove]]
+cleanup = """
+REPO_PATH={{ repo_path }}
+[ -x "$REPO_PATH/wt-hooks/post-remove.sh" ] && "$REPO_PATH/wt-hooks/post-remove.sh" "{{ branch }}" || true
+"""
+
+# Alias: `wt ex EX-123` -> create the team-convention branch, stay in bare repo.
+# NOTE: singleton [aliases] table. If your config already has [aliases], the
+# installer adds this block anyway (TOML merges tables), but a duplicate `ex`
+# key within it is an error — remove your own `ex` alias first if you have one.
+[aliases]
+ex = "wt switch --create --no-cd user/$USER/{{ args[0] }} {% if base %}--base {{ base }}{% endif %}"
+# <<< ex-plugin worktrunk (managed) <<<
+
+
+# worktrunk user config. Authored in the dotfiles repo, deployed via stow
+# (-> ~/.config/worktrunk/config.toml).
+#
+# The ExtraHop worktree conventions (hooks, slug path, `wt ex` alias) are NOT
+# hand-maintained here — they are installed as a managed block by the `ex`
+# Claude Code plugin:
+#   ~/.claude/plugins/ex/contrib/worktrunk/install.sh
+# Keep only personal, non-EX preferences in this file outside that block.
+
+# Persistent flags for `wt list`.
+[list]
+full = true
+branches = true
+
+# ── Personal tmux window management (NOT part of the ex plugin) ──────────────
+# These were extracted from the ex fragment because window navigation/labeling
+# is a personal preference, not an EX/team convention. They live outside the
+# >>> ex-plugin >>> markers so install.sh never refreshes them away.
+# update_labels() is defined in ~/.config/direnv/direnvrc (sets @wl/@wr + webpack
+# pidfile vars from TICKET_ID/UI_PORT). worktree-prune no longer depends on @wl —
+# it associates tmux windows by pane cwd — so this is purely cosmetic/personal.
+
+# Append the update_labels call to the .envrc the ex `envrc` hook just wrote
+# (runs after it; the ex hook truncates with >, this appends with >>).
+[[pre-start]]
+labels = """
+WT={{ worktree_path }}
+[ -f "$WT/.envrc" ] && printf 'update_labels\\n' >> "$WT/.envrc"
+command -v direnv >/dev/null 2>&1 && direnv allow "$WT/.envrc" || true
+"""
+
+# Navigate-or-open a tmux window per worktree (fires on create AND re-open).
+# Opens a window at the worktree, splits, and launches a planning Claude session.
 [post-switch]
 tmux = """
 WT={{ worktree_path }}
@@ -75,44 +128,13 @@ else
 fi
 """
 
-# ── REMOVE: delegate to per-repo hook scripts (untracked, in <bare>/wt-hooks/). ──
-[[pre-remove]]
-cleanup = """
-REPO_PATH={{ repo_path }}
-WT={{ worktree_path }}
-[ -x "$REPO_PATH/wt-hooks/pre-remove.sh" ] && "$REPO_PATH/wt-hooks/pre-remove.sh" "$WT" "{{ branch }}" || true
-"""
-
+# Close the worktree's tmux window on removal (matches the @wl label set above).
 [[post-remove]]
-cleanup = """
+tmux = """
 BRANCH={{ branch }}
 TICKET=$(printf '%s' "$BRANCH" | grep -oiE '(ex|oz)-[0-9]+' | head -1 | tr 'a-z' 'A-Z' || true)
 WL=${TICKET:-$BRANCH}
 tmux list-windows -a -F '#{session_name}:#{window_index} #{@wl}' 2>/dev/null | awk -v w="$WL" '$2==w{print $1}' | while read -r IDX; do
   tmux kill-window -t "$IDX" || true
 done
-REPO_PATH={{ repo_path }}
-[ -x "$REPO_PATH/wt-hooks/post-remove.sh" ] && "$REPO_PATH/wt-hooks/post-remove.sh" "{{ branch }}" || true
 """
-
-# Alias: `wt ex EX-123` -> create the team-convention branch, stay in bare repo.
-# NOTE: singleton [aliases] table. If your config already has [aliases], the
-# installer adds this block anyway (TOML merges tables), but a duplicate `ex`
-# key within it is an error — remove your own `ex` alias first if you have one.
-[aliases]
-ex = "wt switch --create --no-cd user/$USER/{{ args[0] }} {% if base %}--base {{ base }}{% endif %}"
-# <<< ex-plugin worktrunk (managed) <<<
-
-# worktrunk user config. Authored in the dotfiles repo, deployed via stow
-# (-> ~/.config/worktrunk/config.toml).
-#
-# The ExtraHop worktree conventions (hooks, slug path, `wt ex` alias) are NOT
-# hand-maintained here — they are installed as a managed block by the `ex`
-# Claude Code plugin:
-#   ~/.claude/plugins/ex/contrib/worktrunk/install.sh
-# Keep only personal, non-EX preferences in this file outside that block.
-
-# Persistent flags for `wt list`.
-[list]
-full = true
-branches = true
