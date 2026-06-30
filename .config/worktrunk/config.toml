@@ -65,8 +65,12 @@ IDX=$(tmux list-windows -F '#{window_index} #{@wl}' | awk -v w="$WL" '$2==w{prin
 if [ -n "$IDX" ]; then
   tmux select-window -t "$IDX"
 else
-  tmux new-window -c "$WT"
-  tmux split-window -d -h -c "$WT"
+  WIN=$(tmux new-window -P -F '#{window_id}' -c "$WT")
+  tmux split-window -d -h -c "$WT" -t "$WIN"
+  # Left pane: launch Claude and kick off a plan for this ticket (EX/OZ branches only).
+  if [ -n "$TICKET" ]; then
+    tmux send-keys -t "$WIN" "claude --permission-mode plan 'plan $TICKET'" Enter
+  fi
 fi
 """
 
