@@ -1,106 +1,13 @@
-# worktrunk user config. Authored here in the dotfiles repo and deployed via stow
-# (-> ~/.config/worktrunk/config.toml). Manages worktree creation for the bare repos
-# depot.git / updates.git. The heavy lifting (tmux @wl, webpack, ports) lives in direnv's
-# update_labels(); these hooks just write the .envrc that calls it.
+# worktrunk user config. Authored in the dotfiles repo, deployed via stow
+# (-> ~/.config/worktrunk/config.toml).
+#
+# The ExtraHop worktree conventions (hooks, slug path, `wt ex` alias) are NOT
+# hand-maintained here — they are installed as a managed block by the `ex`
+# Claude Code plugin:
+#   ~/.claude/plugins/ex/contrib/worktrunk/install.sh
+# Keep only personal, non-EX preferences in this file outside that block.
 
-# Worktree location: sibling <repo>-worktrees/ dir, lowercase branch slug.
-# `| lower` is REQUIRED — `sanitize` alone preserves case, but existing dirs (and prune's
-# Docker/tmux scoping) are lowercase.
-worktree-path = "{{ repo_path }}/../{{ repo | replace('.git', '') }}-worktrees/{{ branch | sanitize | lower }}"
-
-# ── CREATE: blocking, serial pipeline. Order: claude → exclude → envrc. ──────────
-# Conditionally copy canonical claude/ -> .claude (depot has it; updates does not -> no-op).
-# NOTE: the hook NAME "claude" is load-bearing — the ex:worktree-claude-sync skill
-# re-runs this exact hook on demand (`wt -C <wt> hook pre-start claude --yes`) as its
-# mirror step. Rename here = update the skill's run.sh too. The skill owns the
-# push-back gate; this hook owns the canonical→worktree copy (single source of truth).
-[[pre-start]]
-claude = """
-set -e
-REPO_PATH={{ repo_path }}
-WT={{ worktree_path }}
-if [ -d "$REPO_PATH/claude" ]; then rm -rf "$WT/.claude"; cp -r "$REPO_PATH/claude" "$WT/.claude"; fi
-if [ -f "$REPO_PATH/.mcp.json" ]; then cp "$REPO_PATH/.mcp.json" "$WT/.mcp.json"; fi
-"""
-
-# Keep copied/generated paths out of commits (lands on the bare repo's info/exclude).
-[[pre-start]]
-exclude = """
-set -e
-WT={{ worktree_path }}
-EXCLUDE="$(git -C "$WT" rev-parse --git-common-dir)/info/exclude"
-for e in '**/.claude' '.mcp.json' '.playwright-mcp' '.envrc'; do
-  grep -qxF "$e" "$EXCLUDE" 2>/dev/null || echo "$e" >> "$EXCLUDE"
-done
-"""
-
-# Write .envrc (TICKET_ID parsed from branch + update_labels) and trust it with direnv.
-# Non-EX/OZ branches -> no TICKET_ID; update_labels falls back to a branch-derived slug.
-[[pre-start]]
-envrc = """
-set -e
-WT={{ worktree_path }}
-BRANCH={{ branch }}
-TICKET=$(printf '%s' "$BRANCH" | grep -oiE '(ex|oz)-[0-9]+' | head -1 | tr 'a-z' 'A-Z' || true)
-{
-  [ -n "$TICKET" ] && printf 'export TICKET_ID="%s"\\n' "$TICKET"
-  printf 'unset UI_PORT\\n'
-  printf 'unset STORYBOOK_PORT\\n'
-  printf 'update_labels\\n'
-} > "$WT/.envrc"
-command -v direnv >/dev/null 2>&1 && direnv allow "$WT/.envrc" || true
-"""
-
-# ── SWITCH: the single window-manager hook. Foreground, fires on create AND re-open. ──
-# With --no-cd, navigation is entirely this hook's job: open the worktree's tmux window if
-# missing, else focus it. Matches against @wl (set by direnv update_labels on .envrc load).
-[post-switch]
-tmux = """
-WT={{ worktree_path }}
-BRANCH={{ branch }}
-[ -z "${TMUX:-}" ] && exit 0
-TICKET=$(printf '%s' "$BRANCH" | grep -oiE '(ex|oz)-[0-9]+' | head -1 | tr 'a-z' 'A-Z' || true)
-WL=${TICKET:-$(printf '%s' "$BRANCH" | tr '/' '-')}
-IDX=$(tmux list-windows -F '#{window_index} #{@wl}' | awk -v w="$WL" '$2==w{print $1; exit}')
-if [ -n "$IDX" ]; then
-  tmux select-window -t "$IDX"
-else
-  WIN=$(tmux new-window -P -F '#{window_id}' -c "$WT")
-  tmux split-window -d -h -c "$WT" -t "$WIN"
-  # Left pane: launch Claude and kick off a plan for this ticket (EX/OZ branches only).
-  if [ -n "$TICKET" ]; then
-    tmux send-keys -t "$WIN" "claude --permission-mode plan 'plan $TICKET'" Enter
-  fi
-fi
-"""
-
-# ── REMOVE: delegate to per-repo hook scripts (untracked, in <bare>/wt-hooks/). ──
-# Pre-remove: blocking — stops containers before the worktree is deleted.
-# Post-remove: background — closes the tmux window after removal.
-# Both are no-ops if the repo has no wt-hooks/ scripts.
-[[pre-remove]]
-cleanup = """
-REPO_PATH={{ repo_path }}
-WT={{ worktree_path }}
-[ -x "$REPO_PATH/wt-hooks/pre-remove.sh" ] && "$REPO_PATH/wt-hooks/pre-remove.sh" "$WT" "{{ branch }}" || true
-"""
-
-[[post-remove]]
-cleanup = """
-BRANCH={{ branch }}
-TICKET=$(printf '%s' "$BRANCH" | grep -oiE '(ex|oz)-[0-9]+' | head -1 | tr 'a-z' 'A-Z' || true)
-WL=${TICKET:-$BRANCH}
-tmux list-windows -a -F '#{session_name}:#{window_index} #{@wl}' 2>/dev/null | awk -v w="$WL" '$2==w{print $1}' | while read -r IDX; do
-  tmux kill-window -t "$IDX" || true
-done
-REPO_PATH={{ repo_path }}
-[ -x "$REPO_PATH/wt-hooks/post-remove.sh" ] && "$REPO_PATH/wt-hooks/post-remove.sh" "{{ branch }}" || true
-"""
-
+# Persistent flags for `wt list`.
 [list]
 full = true
 branches = true
-
-# ── Alias: `wt ex EX-123` -> create the team-convention branch, stay in bare repo. ──
-[aliases]
-ex = "wt switch --create --no-cd user/$USER/{{ args[0] }} {% if base %}--base {{ base }}{% endif %}"
