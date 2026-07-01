@@ -108,7 +108,7 @@ command -v direnv >/dev/null 2>&1 && direnv allow "$WT/.envrc" || true
 """
 
 # Navigate-or-open a tmux window per worktree (fires on create AND re-open).
-# Opens a window at the worktree, splits, and launches a planning Claude session.
+# Opens a window at the worktree and splits it, leaving both panes at a shell.
 [post-switch]
 tmux = """
 WT={{ worktree_path }}
@@ -122,9 +122,6 @@ if [ -n "$IDX" ]; then
 else
   WIN=$(tmux new-window -P -F '#{window_id}' -c "$WT")
   tmux split-window -d -h -c "$WT" -t "$WIN"
-  if [ -n "$TICKET" ]; then
-    tmux send-keys -t "$WIN" "claude --permission-mode plan 'plan $TICKET'" Enter
-  fi
 fi
 """
 
