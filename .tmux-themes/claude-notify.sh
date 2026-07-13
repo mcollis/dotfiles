@@ -10,3 +10,4 @@ case "${1:-}" in
   waiting) tmux set-option $TARGET -w @claude-waiting "💬" 2>/dev/null ;;
   clear)   tmux set-option $TARGET -wu @claude-waiting 2>/dev/null ;;
 esac
+exit 0
