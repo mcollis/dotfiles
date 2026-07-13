@@ -7,6 +7,7 @@ fi
 # --- PATH ---
 [[ ":$PATH:" != *":$HOME/.local/bin:"* ]] && PATH="$HOME/.local/bin:$PATH"
 [[ ":$PATH:" != *":/opt/nvim:"* ]] && PATH="/opt/nvim:$PATH"
+[[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]] && PATH="$HOME/.cargo/bin:$PATH"
 
 # --- Oh My Zsh ---
 export ZSH="$HOME/.oh-my-zsh"
@@ -25,6 +26,12 @@ plugins=(git zsh-autosuggestions zsh-syntax-highlighting fzf)
 source $ZSH/oh-my-zsh.sh
 
 # --- fzf ---
+# herdr draws its own panes. When the herdr server is started from inside a
+# tmux pane it leaks $TMUX/$TMUX_PANE into every pane it spawns, which makes
+# fzf's __fzfcmd pick fzf-tmux and try to draw its popup in an invisible tmux
+# pane -- Ctrl+R then hangs the herdr pane. Drop the stale vars in herdr panes.
+[[ "$HERDR_ENV" == "1" ]] && unset TMUX TMUX_PANE
+
 # Auto-install fzf if not present
 if ! command -v fzf &> /dev/null; then
   if [[ "$OSTYPE" == "darwin"* ]]; then
