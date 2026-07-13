@@ -1,5 +1,20 @@
+onboarding = false
 [ui]
 agent_panel_sort = "spaces"
 
+show_agent_labels_on_pane_borders = true
 [theme]
 name = "one-dark"
+
+auto_switch = false
+[ui.toast]
+delivery = "system"
+
+[keys]
+swap_pane_left  = "prefix+shift+h"
+swap_pane_down  = "prefix+shift+j"
+swap_pane_up    = "prefix+shift+k"
+swap_pane_right = "prefix+shift+l"
+
+[experimental]
+switch_ascii_input_source_in_prefix = true
