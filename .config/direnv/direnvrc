@@ -5,7 +5,7 @@
 #
 # Reads:
 #   TICKET_ID  → tmux window label @wl (falls back to current branch name)
-#   UI_PORT    → tmux right label @wr
+#   UI_PORT    → tmux right label @wr; also appended to the herdr workspace label
 #
 # Exports (for shells, hooks, skills):
 #   WEBPACK_LOG     /tmp/depot-webpack-<slug>.log
@@ -29,6 +29,9 @@ update_labels() {
     export WEBPACK_LOG="/tmp/depot-webpack-${slug}.log"
     export WEBPACK_PIDFILE="/tmp/depot-webpack-${slug}.pid"
 
+    # herdr and tmux are independent; sync herdr before the tmux-only return.
+    _herdr_update_labels
+
     [ -z "${TMUX:-}" ] && return 0
 
     local label="${TICKET_ID:-$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)}"
@@ -45,4 +48,31 @@ update_labels() {
     fi
 
     tmux set-option -w @pidfile "$WEBPACK_PIDFILE" 2>/dev/null || true
+}
+
+# herdr analog of the tmux @wl/@wr labels. herdr has no per-workspace user
+# vars + label template, so instead of "set a var, let a theme render it" we
+# push the final workspace label directly. We piggyback on whatever label
+# herdr/worktrunk already set (e.g. the repo/branch name) as the base and
+# append " <sep> <UI_PORT>", stripping any suffix we set previously so repeated
+# direnv reloads stay idempotent instead of stacking. No-op outside herdr.
+_herdr_update_labels() {
+    [ -n "${HERDR_WORKSPACE_ID:-}" ] || return 0
+    command -v herdr >/dev/null 2>&1 || return 0
+
+    # UI_PORT is a bare number (e.g. 8081); we glue it on as ":<port>" so the
+    # label reads like "depot.git:3000". Strip at the first ":" to recover the
+    # base (repo/branch names don't contain colons) — keeps reloads idempotent.
+    local cur base
+    cur=$(herdr workspace get "$HERDR_WORKSPACE_ID" 2>/dev/null \
+          | python3 -c 'import json,sys; print(json.load(sys.stdin)["result"]["workspace"]["label"])' 2>/dev/null)
+    [ -n "$cur" ] || return 0
+    base=${cur%%:*}
+
+    if [ -n "${UI_PORT:-}" ]; then
+        [ "$cur" = "${base}:${UI_PORT}" ] || \
+            herdr workspace rename "$HERDR_WORKSPACE_ID" "${base}:${UI_PORT}" >/dev/null 2>&1
+    elif [ "$cur" != "$base" ]; then
+        herdr workspace rename "$HERDR_WORKSPACE_ID" "$base" >/dev/null 2>&1
+    fi
 }
