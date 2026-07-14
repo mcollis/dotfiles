@@ -47,7 +47,6 @@
     "allow": [
       "Skill(commit-message)",
       "Skill(docker-prune)",
-      "Skill(playwright-cli)",
       "Skill(ex:code-review)",
       "Skill(ex:gitlab)",
       "Skill(ex:jira)",
@@ -73,8 +72,7 @@
       "Bash(jira-cli issue view*)",
       "Bash(jira-cli issue list*)",
       "Bash(jira-cli sprint list*)",
-      "Read(/tmp/**)",
-      "Bash(playwright-cli *)"
+      "Read(/tmp/**)"
     ],
     "ask": [
       "Bash(git commit*)",
@@ -168,8 +166,6 @@
       "gh issue create *",
       "gh issue close",
       "gh issue close *",
-      "playwright-cli",
-      "playwright-cli *",
       "agent-browser",
       "agent-browser *"
     ],
