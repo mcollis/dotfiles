@@ -2,7 +2,6 @@
 set -euo pipefail
 
 SOURCE_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-DOTFILES_ROOT="$(cd -- "$SOURCE_ROOT/.." && pwd -P)"
 HOME_ROOT="${HOME:?HOME is required}"
 BACKUP_ROOT="$HOME_ROOT/.local/state/agents-stow/backups"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)-$$"
@@ -165,19 +164,6 @@ check_link() {
     fi
 }
 
-check_file() {
-    local source="$1"
-    local destination="$2"
-
-    if [ ! -e "$destination" ] && [ ! -L "$destination" ]; then
-        printf 'MISSING %s\n' "$destination"
-        CHECK_STATUS=1
-    elif [ -L "$destination" ] || ! cmp -s "$source" "$destination"; then
-        printf 'DRIFT   %s\n' "$destination"
-        CHECK_STATUS=1
-    fi
-}
-
 check() {
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.agents/skills" skills
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.claude/skills" skills
@@ -189,12 +175,6 @@ check() {
     check_link "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/plugins/ex"
     check_link "$SOURCE_ROOT/codex/marketplace.json" \
         "$HOME_ROOT/.agents/plugins/marketplace.json"
-    check_file "$SOURCE_ROOT/claude/settings.json" \
-        "$DOTFILES_ROOT/.claude/settings.json"
-    check_file "$SOURCE_ROOT/claude/CLAUDE.md" \
-        "$DOTFILES_ROOT/.claude/CLAUDE.md"
-    check_file "$SOURCE_ROOT/claude/statusline.sh" \
-        "$DOTFILES_ROOT/.claude/statusline.sh"
     return "$CHECK_STATUS"
 }
 
@@ -219,36 +199,12 @@ install_projections() {
     link_directory "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/plugins/ex"
     link_directory "$SOURCE_ROOT/codex/marketplace.json" \
         "$HOME_ROOT/.agents/plugins/marketplace.json"
-    compat
     write_created_manifest
     if [ "$BACKUP_CREATED" -eq 1 ]; then
         printf 'Installed projections; backups are in %s\n' "$BACKUP_DIR"
     else
         printf 'Installed projections; no backup was needed.\n'
     fi
-}
-
-compat() {
-    local source destination temporary
-
-    for source in "$SOURCE_ROOT/claude/settings.json" \
-        "$SOURCE_ROOT/claude/CLAUDE.md" "$SOURCE_ROOT/claude/statusline.sh"; do
-        destination="$DOTFILES_ROOT/.claude/${source##*/}"
-        mkdir -p "$(dirname "$destination")"
-        if [ -f "$destination" ] && [ ! -L "$destination" ] &&
-            cmp -s "$source" "$destination"; then
-            continue
-        fi
-        if [ -e "$destination" ] || [ -L "$destination" ]; then
-            backup_path "$destination"
-        else
-            record_created "$destination"
-        fi
-        temporary="$(mktemp "$destination.XXXXXX")"
-        cp -L "$source" "$temporary"
-        remove_path "$destination"
-        mv "$temporary" "$destination"
-    done
 }
 
 remove_projections() {
@@ -325,13 +281,10 @@ case "${1:-check}" in
     remove)
         remove_projections
         ;;
-    compat)
-        compat
-        ;;
     rollback)
         rollback
         ;;
     *)
-        die "usage: $0 {check|install|restow|remove|compat|rollback}"
+        die "usage: $0 {check|install|restow|remove|rollback}"
         ;;
 esac

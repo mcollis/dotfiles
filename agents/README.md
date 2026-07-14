@@ -10,4 +10,4 @@ Generic hook implementations live under `hooks/`. Harness-specific hook
 registration lives in `claude/settings.json` and `codex/hooks.json`.
 
 Run `stow.sh check` before installing changes. `stow.sh install` creates
-symlink projections and updates regular Claude compatibility outputs.
+symlink projections for the harness adapters.
