@@ -8,7 +8,7 @@ name = "one-dark"
 
 auto_switch = false
 [ui.toast]
-delivery = "system"
+delivery = "off"
 
 [keys]
 swap_pane_left  = "prefix+shift+h"
@@ -28,3 +28,6 @@ command = "herdr plugin action invoke open-lazygit-tab --plugin herdr-lazygit"
 
 [experimental]
 switch_ascii_input_source_in_prefix = true
+
+[ui.sound]
+enabled = false
