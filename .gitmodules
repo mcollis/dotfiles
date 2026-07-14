@@ -1,0 +1,3 @@
+[submodule "agents/plugins/ex"]
+	path = agents/plugins/ex
+	url = git@gitlab.i.extrahop.com:michaelco/claude-ex.git
