@@ -1,1 +1,0 @@
-../../agents/dot-agents/AGENTS.md

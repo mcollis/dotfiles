@@ -1,2 +1,2 @@
-nvim/dot-config/nvim/lazy-lock.json
-.claude/
+nvim/.config/nvim/lazy-lock.json
+/.claude/

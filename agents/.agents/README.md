@@ -9,10 +9,10 @@ Stow workflow and all packages.
 ## Layout
 
 ```text
-agents/dot-agents/              -> ~/.agents/
-claude/dot-claude/              -> ~/.claude/
-codex/dot-codex/                -> ~/.codex/
-opencode/dot-config/opencode/   -> ~/.config/opencode/
+agents/.agents/              -> ~/.agents/
+claude/.claude/              -> ~/.claude/
+codex/.codex/                -> ~/.codex/
+opencode/.config/opencode/   -> ~/.config/opencode/
 ```
 
 Claude and Codex roots stay real directories. Stow manages only their stable
@@ -30,7 +30,7 @@ mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config"
 [ -e "$HOME/.claude/settings.json" ] || cp templates/claude-settings.json "$HOME/.claude/settings.json"
 [ -e "$HOME/.codex/config.toml" ] || : > "$HOME/.codex/config.toml"
 mkdir -p "$HOME/.agents"
-ln -s "$(pwd)/agents/dot-agents/skills" "$HOME/.agents/skills"
+ln -s "$(pwd)/agents/.agents/skills" "$HOME/.agents/skills"
 ln -s ../.agents/skills "$HOME/.claude/skills"
 ln -s ../.agents/skills "$HOME/.codex/skills"
 ```
