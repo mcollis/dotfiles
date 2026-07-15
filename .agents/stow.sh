@@ -180,6 +180,7 @@ check() {
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.claude" claude
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.codex" codex marketplace.json
     check_link "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/.agents/plugins/ex"
+    check_link "$SOURCE_ROOT/projects/depot" "$HOME_ROOT/.agents/projects/depot"
     check_link "$HOME_ROOT/.agents/plugins/ex" "$HOME_ROOT/.claude/plugins/ex"
     if matches_source "$HOME_ROOT/plugins/ex" "$SOURCE_ROOT/plugins/ex"; then
         printf 'STALE   %s\n' "$HOME_ROOT/plugins/ex"
@@ -205,6 +206,7 @@ install_projections() {
     stow_package "$SOURCE_ROOT" "$HOME_ROOT/.claude" claude
     stow_package "$SOURCE_ROOT" "$HOME_ROOT/.codex" codex marketplace.json
     link_directory "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/.agents/plugins/ex"
+    link_directory "$SOURCE_ROOT/projects/depot" "$HOME_ROOT/.agents/projects/depot"
     link_directory "$HOME_ROOT/.agents/plugins/ex" "$HOME_ROOT/.claude/plugins/ex"
     link_directory "$SOURCE_ROOT/codex/marketplace.json" \
         "$HOME_ROOT/.agents/plugins/marketplace.json"
@@ -227,6 +229,8 @@ remove_projections() {
         remove_path "$HOME_ROOT/.claude/plugins/ex"
     matches_source "$HOME_ROOT/.agents/plugins/ex" "$SOURCE_ROOT/plugins/ex" &&
         remove_path "$HOME_ROOT/.agents/plugins/ex"
+    matches_source "$HOME_ROOT/.agents/projects/depot" "$SOURCE_ROOT/projects/depot" &&
+        remove_path "$HOME_ROOT/.agents/projects/depot"
     matches_source "$HOME_ROOT/plugins/ex" "$SOURCE_ROOT/plugins/ex" &&
         remove_legacy_plugin_link
     matches_source "$HOME_ROOT/.agents/plugins/marketplace.json" \
