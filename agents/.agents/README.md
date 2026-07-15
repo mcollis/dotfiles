@@ -60,16 +60,10 @@ OpenCode dependencies are local runtime state:
 npm ci --prefix "$HOME/.config/opencode"
 ```
 
-Register and install the `ex` Claude plugin per machine. Its installation state
-is intentionally not tracked:
-
-```sh
-claude plugin marketplace add "$HOME/.agents/plugins/ex/.claude-plugin/marketplace.json"
-claude plugin install ex@ex-agents-marketplace --scope user
-```
-
-The `ex` repository documents its own behavior and requirements. For Depot's
-project-scoped Worktrunk hooks, inspect the installer before applying it:
+Register and install the `ex` Claude plugin per machine using
+[its installation guide](plugins/ex/README.md#install). Its installation state
+is intentionally not tracked. For Depot's project-scoped Worktrunk hooks,
+inspect the installer before applying it:
 
 ```sh
 "$HOME/.agents/projects/depot/worktrunk/install.sh" --dry-run
