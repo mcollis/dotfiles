@@ -36,7 +36,9 @@ stow -n -v agents claude codex opencode direnv ghostty herdr lazygit nvim worktr
 stow -v agents claude codex opencode direnv ghostty herdr lazygit nvim worktrunk shell tmux
 ```
 
-`.stowrc` sets `--dotfiles` and targets `$HOME`. The dry run is required before
+`.stowrc` sets `--dotfiles`, `--no-folding`, and targets `$HOME`.
+`--no-folding` keeps harness and application target directories real, so
+runtime state can coexist with managed links. The dry run is required before
 the real install. Do not use `stow --adopt`: it can import machine-specific
 state into this repository.
 
