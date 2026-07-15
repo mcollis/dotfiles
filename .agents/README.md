@@ -9,5 +9,5 @@ submodule under `plugins/ex` and contains both Claude and Codex manifests.
 Generic hook implementations live under `hooks/`. Harness-specific hook
 registration lives in `claude/settings.json` and `codex/hooks.json`.
 
-Run `stow.sh check` before installing changes. `stow.sh install` creates
+Run `.agents/stow.sh check` before installing changes. `.agents/stow.sh install` creates
 symlink projections for the harness adapters.

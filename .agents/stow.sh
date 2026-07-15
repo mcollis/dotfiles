@@ -164,6 +164,14 @@ check_link() {
     fi
 }
 
+remove_legacy_plugin_link() {
+    if matches_source "$HOME_ROOT/plugins/ex" "$SOURCE_ROOT/plugins/ex"; then
+        backup_path "$HOME_ROOT/plugins/ex"
+        remove_path "$HOME_ROOT/plugins/ex"
+        rmdir "$HOME_ROOT/plugins" 2>/dev/null || true
+    fi
+}
+
 check() {
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.agents/skills" skills
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.claude/skills" skills
@@ -171,14 +179,19 @@ check() {
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.agents/hooks" hooks
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.claude" claude
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.codex" codex marketplace.json
-    check_link "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/.claude/plugins/ex"
-    check_link "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/plugins/ex"
+    check_link "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/.agents/plugins/ex"
+    check_link "$HOME_ROOT/.agents/plugins/ex" "$HOME_ROOT/.claude/plugins/ex"
+    if matches_source "$HOME_ROOT/plugins/ex" "$SOURCE_ROOT/plugins/ex"; then
+        printf 'STALE   %s\n' "$HOME_ROOT/plugins/ex"
+        CHECK_STATUS=1
+    fi
     check_link "$SOURCE_ROOT/codex/marketplace.json" \
         "$HOME_ROOT/.agents/plugins/marketplace.json"
     return "$CHECK_STATUS"
 }
 
 install_projections() {
+    remove_legacy_plugin_link
     prepare_package "$SOURCE_ROOT/skills" "$HOME_ROOT/.agents/skills"
     prepare_package "$SOURCE_ROOT/skills" "$HOME_ROOT/.claude/skills"
     prepare_package "$SOURCE_ROOT/skills" "$HOME_ROOT/.codex/skills"
@@ -191,12 +204,8 @@ install_projections() {
     stow_package "$SOURCE_ROOT" "$HOME_ROOT/.agents/hooks" hooks
     stow_package "$SOURCE_ROOT" "$HOME_ROOT/.claude" claude
     stow_package "$SOURCE_ROOT" "$HOME_ROOT/.codex" codex marketplace.json
-    link_directory "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/.claude/plugins/ex"
-    if matches_source "$HOME_ROOT/.agents/plugins/ex" "$SOURCE_ROOT/plugins/ex"; then
-        backup_path "$HOME_ROOT/.agents/plugins/ex"
-        remove_path "$HOME_ROOT/.agents/plugins/ex"
-    fi
-    link_directory "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/plugins/ex"
+    link_directory "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/.agents/plugins/ex"
+    link_directory "$HOME_ROOT/.agents/plugins/ex" "$HOME_ROOT/.claude/plugins/ex"
     link_directory "$SOURCE_ROOT/codex/marketplace.json" \
         "$HOME_ROOT/.agents/plugins/marketplace.json"
     write_created_manifest
@@ -214,12 +223,12 @@ remove_projections() {
     unstow_package "$SOURCE_ROOT" "$HOME_ROOT/.agents/hooks" hooks
     unstow_package "$SOURCE_ROOT" "$HOME_ROOT/.claude" claude
     unstow_package "$SOURCE_ROOT" "$HOME_ROOT/.codex" codex marketplace.json
-    matches_source "$HOME_ROOT/.claude/plugins/ex" "$SOURCE_ROOT/plugins/ex" &&
+    matches_source "$HOME_ROOT/.claude/plugins/ex" "$HOME_ROOT/.agents/plugins/ex" &&
         remove_path "$HOME_ROOT/.claude/plugins/ex"
-    matches_source "$HOME_ROOT/plugins/ex" "$SOURCE_ROOT/plugins/ex" &&
-        remove_path "$HOME_ROOT/plugins/ex"
     matches_source "$HOME_ROOT/.agents/plugins/ex" "$SOURCE_ROOT/plugins/ex" &&
         remove_path "$HOME_ROOT/.agents/plugins/ex"
+    matches_source "$HOME_ROOT/plugins/ex" "$SOURCE_ROOT/plugins/ex" &&
+        remove_legacy_plugin_link
     matches_source "$HOME_ROOT/.agents/plugins/marketplace.json" \
         "$SOURCE_ROOT/codex/marketplace.json" &&
         remove_path "$HOME_ROOT/.agents/plugins/marketplace.json"
