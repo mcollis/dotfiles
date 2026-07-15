@@ -1,6 +1,6 @@
 ---
 name: commit-message
-description: Help draft a commit message from the current diff. TRIGGER when user asks to write, draft, or review a commit message, or asks to commit changes. Reads {repo-root}/.claude/conventions/commit-message.md if present and follows its rules; otherwise drafts a generic imperative-mood commit.
+description: Help draft a commit message from the current diff. TRIGGER when user asks to write, draft, or review a commit message, or asks to commit changes. Reads {repo-root}/.agents/conventions/commit-message.md if present and follows its rules; otherwise drafts a generic imperative-mood commit.
 ---
 
 # Commit Message Helper
@@ -10,7 +10,7 @@ Draft a well-structured commit message based on the current diff. Reads the repo
 ## Instructions
 
 1. Run `git diff --cached` (and `git diff` if nothing is staged) to review the changes.
-2. Look for `{repo-root}/.claude/conventions/commit-message.md`. If it exists, read it and follow its rules. Treat it as authoritative for format, footer, and any project-specific prefixes.
+2. Look for `{repo-root}/.agents/conventions/commit-message.md`. If it exists, read it and follow its rules. Treat it as authoritative for format, footer, and any project-specific prefixes.
 3. Derive a ticket ID from the branch name using the generic pattern `[A-Z]+-[0-9]+` (e.g., `user/mike/EX-67574-foo` → `EX-67574`, `feature/FOO-123` → `FOO-123`). If `$TICKET_ID` is set in the shell (from .envrc), prefer it. If neither yields a ticket, ask the user.
 4. Draft the commit message following (in order of preference):
     - The conventions file's format, if present
