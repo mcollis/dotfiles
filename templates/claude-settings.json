@@ -1,0 +1,71 @@
+{
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ]
+  },
+  "model": "opus",
+  "permissions": {
+    "allow": [
+      "Skill(commit-message)",
+      "Bash(glab mr list*)",
+      "Bash(glab mr view*)",
+      "Bash(glab mr note list*)",
+      "Bash(glab mr checks*)",
+      "Bash(glab mr diff*)",
+      "Bash(glab issue list*)",
+      "Bash(glab issue view*)",
+      "Bash(jira-cli issue view*)",
+      "Bash(jira-cli issue list*)",
+      "Bash(jira-cli sprint list*)",
+      "Read(/tmp/**)"
+    ],
+    "ask": [
+      "Bash(git commit*)",
+      "Bash(git -C * commit*)",
+      "Bash(git push*)",
+      "Bash(git -C * push*)",
+      "Bash(git rebase*)",
+      "Bash(git -C * rebase*)",
+      "Bash(git reset --hard*)",
+      "Bash(git -C * reset --hard*)",
+      "Bash(git branch -D*)",
+      "Bash(git -C * branch -D*)",
+      "Bash(git branch -d*)",
+      "Bash(git -C * branch -d*)",
+      "Bash(git tag -d*)",
+      "Bash(git tag --delete*)",
+      "Bash(git -C * tag -d*)",
+      "Bash(git worktree*)",
+      "Bash(git -C * worktree*)",
+      "Bash(glab mr create*)",
+      "Bash(glab mr merge*)",
+      "Bash(glab mr close*)",
+      "Bash(glab mr note create*)",
+      "Bash(gh pr create*)",
+      "Bash(gh pr merge*)",
+      "Bash(gh pr close*)",
+      "Bash(gh issue create*)",
+      "Bash(gh issue close*)"
+    ]
+  },
+  "statusLine": {
+    "command": "~/.claude/statusline.sh",
+    "padding": 0,
+    "type": "command"
+  },
+  "teammateMode": "auto",
+  "theme": "dark-ansi",
+  "tui": "fullscreen"
+}

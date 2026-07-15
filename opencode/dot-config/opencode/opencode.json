@@ -1,0 +1,42 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "~/.agents/AGENTS.md"
+  ],
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "git commit*": "ask",
+      "git -C * commit*": "ask",
+      "git push*": "ask",
+      "git -C * push*": "ask",
+      "git rebase*": "ask",
+      "git -C * rebase*": "ask",
+      "git reset --hard*": "ask",
+      "git -C * reset --hard*": "ask",
+      "git branch -D*": "ask",
+      "git -C * branch -D*": "ask",
+      "git branch -d*": "ask",
+      "git -C * branch -d*": "ask",
+      "git tag -d*": "ask",
+      "git tag --delete*": "ask",
+      "git -C * tag -d*": "ask",
+      "git worktree*": "ask",
+      "git -C * worktree*": "ask",
+      "glab mr create*": "ask",
+      "glab mr merge*": "ask",
+      "glab mr close*": "ask",
+      "glab mr note create*": "ask",
+      "gh pr create*": "ask",
+      "gh pr merge*": "ask",
+      "gh pr close*": "ask",
+      "gh issue create*": "ask",
+      "gh issue close*": "ask"
+    },
+    "external_directory": {
+      "/tmp/**": "allow",
+      "~/.claude/**": "allow",
+      "~/.local/share/direnv/**": "allow"
+    }
+  }
+}

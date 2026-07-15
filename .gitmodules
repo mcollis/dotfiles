@@ -1,6 +1,6 @@
-[submodule ".agents/plugins/ex"]
-	path = .agents/plugins/ex
+[submodule "agents/dot-agents/plugins/ex"]
+	path = agents/dot-agents/plugins/ex
 	url = git@gitlab.i.extrahop.com:michaelco/ex-agents.git
-[submodule ".agents/projects/depot"]
-	path = .agents/projects/depot
+[submodule "agents/dot-agents/projects/depot"]
+	path = agents/dot-agents/projects/depot
 	url = git@gitlab.i.extrahop.com:michaelco/depot-agents.git
