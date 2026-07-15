@@ -1,9 +1,10 @@
-# Agent assets
+# Agent setup
 
 `AGENTS.md` and `skills/` are canonical harness-neutral assets. Claude and
 Codex receive the shared `skills/` directory through links to `~/.agents`.
 `plugins/ex` and `projects/depot` are Git submodules, exposed at `~/.agents/`
-after Stow.
+after Stow. The [repository README](../../README.md) documents the general
+Stow workflow and all packages.
 
 ## Layout
 
@@ -21,10 +22,10 @@ Stowed.
 
 ## New machine
 
-From the dotfiles repository:
+From the dotfiles repository, initialize the agent directories before Stowing
+the `agents`, `claude`, `codex`, or `opencode` packages:
 
 ```sh
-git submodule update --init --recursive
 mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config"
 [ -e "$HOME/.claude/settings.json" ] || cp templates/claude-settings.json "$HOME/.claude/settings.json"
 [ -e "$HOME/.codex/config.toml" ] || : > "$HOME/.codex/config.toml"
@@ -32,15 +33,9 @@ mkdir -p "$HOME/.agents"
 ln -s "$(pwd)/agents/dot-agents/skills" "$HOME/.agents/skills"
 ln -s ../.agents/skills "$HOME/.claude/skills"
 ln -s ../.agents/skills "$HOME/.codex/skills"
-stow -n -v agents claude codex opencode direnv ghostty herdr lazygit nvim worktrunk shell tmux
-stow -v agents claude codex opencode direnv ghostty herdr lazygit nvim worktrunk shell tmux
 ```
 
-`.stowrc` sets `--dotfiles`, `--no-folding`, and targets `$HOME`.
-`--no-folding` keeps harness and application target directories real, so
-runtime state can coexist with managed links. The dry run is required before
-the real install. Do not use `stow --adopt`: it can import machine-specific
-state into this repository.
+Then follow the root README's dry-run and install commands.
 
 GNU Stow follows source directory symlinks, so it cannot create these three
 whole-directory links itself. They ensure a skill created through Claude or
