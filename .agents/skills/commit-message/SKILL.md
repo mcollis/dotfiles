@@ -20,19 +20,34 @@ Draft a well-structured commit message based on the current diff. Reads the repo
     - Any additional context about **why** the change was made
     - **If the conventions file defines a prefix/classification scheme (e.g., risk prefixes):** ask which to apply. NEVER auto-assign one — even if the diff looks "obviously safe" or "obviously risky". The choice belongs to the human author.
 6. Present the final message for approval. Do NOT commit without explicit confirmation.
+7. Before sending the final message, hard-wrap every prose body paragraph at
+   72 characters and verify the exact raw lines that will be sent:
+    - Use literal newline characters, not Markdown's visual soft wrapping.
+    - Every nonblank prose body line must be 72 characters or fewer. Reflow
+      at word boundaries; do not split a word, URL, or identifier.
+    - Preserve one blank line between paragraphs and between the subject,
+      body, and any footer.
+    - Check the final text block line by line. Reflow any overlong prose line
+      before sending it. Do not merely state that the body is wrapped.
+    - A convention that explicitly requires a longer fixed-format line takes
+      precedence; otherwise, flag an unbreakable token longer than 72
+      characters instead of silently violating the limit.
 
 ## Generic Format (when no conventions file exists)
 
 ```
 <Imperative title, ~50 chars>
 
-<Body explaining WHY, wrapped at 72 chars. Blank line between
-paragraphs. Explain motivation, trade-offs, and decisions, not
-what the diff obviously shows.>
+<Body explaining WHY, hard-wrapped at 72 characters or fewer per raw
+line. Blank line between paragraphs. Explain motivation, trade-offs,
+and decisions, not what the diff obviously shows.>
 ```
 
 - Title: imperative mood ("Add X" not "Added X"), capitalize first letter, no trailing period
-- Body: wrap at 72 characters, separate paragraphs with blank lines, explain the why
+- Body: hard-wrap each raw prose line at 72 characters or fewer, separate
+  paragraphs with blank lines, explain the why
+- Final presentation: put the exact message in a fenced `text` block so its
+  literal line breaks and wrapping can be inspected
 - **Never** add `Co-Authored-By`, AI attribution, or any other generated footer unless the conventions file explicitly calls for one
 
 ## Drafting Style
