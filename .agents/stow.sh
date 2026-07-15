@@ -172,13 +172,27 @@ remove_legacy_plugin_link() {
     fi
 }
 
+has_legacy_adapter_projections() {
+    local path link
+
+    for path in "$HOME_ROOT/.claude/CLAUDE.md" "$HOME_ROOT/.codex/AGENTS.md"; do
+        [ -L "$path" ] || continue
+        link="$(readlink "$path")"
+        case "$link" in
+            *".agents/claude/"*|*".agents/codex/"*) return 0 ;;
+        esac
+    done
+    return 1
+}
+
 check() {
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.agents/skills" skills
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.claude/skills" skills
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.codex/skills" skills
     check_package "$SOURCE_ROOT" "$HOME_ROOT/.agents/hooks" hooks
-    check_package "$SOURCE_ROOT" "$HOME_ROOT/.claude" claude
-    check_package "$SOURCE_ROOT" "$HOME_ROOT/.codex" codex marketplace.json
+    check_package "$SOURCE_ROOT/adapters" "$HOME_ROOT/.claude" claude
+    check_package "$SOURCE_ROOT/adapters" "$HOME_ROOT/.codex" codex marketplace.json
+    check_package "$SOURCE_ROOT/adapters" "$HOME_ROOT/.config/opencode" opencode
     check_link "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/.agents/plugins/ex"
     check_link "$SOURCE_ROOT/projects/depot" "$HOME_ROOT/.agents/projects/depot"
     check_link "$HOME_ROOT/.agents/plugins/ex" "$HOME_ROOT/.claude/plugins/ex"
@@ -197,14 +211,16 @@ install_projections() {
     prepare_package "$SOURCE_ROOT/skills" "$HOME_ROOT/.claude/skills"
     prepare_package "$SOURCE_ROOT/skills" "$HOME_ROOT/.codex/skills"
     prepare_package "$SOURCE_ROOT/hooks" "$HOME_ROOT/.agents/hooks"
-    prepare_package "$SOURCE_ROOT/claude" "$HOME_ROOT/.claude"
-    prepare_package "$SOURCE_ROOT/codex" "$HOME_ROOT/.codex" marketplace.json
+    prepare_package "$SOURCE_ROOT/adapters/claude" "$HOME_ROOT/.claude"
+    prepare_package "$SOURCE_ROOT/adapters/codex" "$HOME_ROOT/.codex" marketplace.json
+    prepare_package "$SOURCE_ROOT/adapters/opencode" "$HOME_ROOT/.config/opencode"
     stow_package "$SOURCE_ROOT" "$HOME_ROOT/.agents/skills" skills
     stow_package "$SOURCE_ROOT" "$HOME_ROOT/.claude/skills" skills
     stow_package "$SOURCE_ROOT" "$HOME_ROOT/.codex/skills" skills
     stow_package "$SOURCE_ROOT" "$HOME_ROOT/.agents/hooks" hooks
-    stow_package "$SOURCE_ROOT" "$HOME_ROOT/.claude" claude
-    stow_package "$SOURCE_ROOT" "$HOME_ROOT/.codex" codex marketplace.json
+    stow_package "$SOURCE_ROOT/adapters" "$HOME_ROOT/.claude" claude
+    stow_package "$SOURCE_ROOT/adapters" "$HOME_ROOT/.codex" codex marketplace.json
+    stow_package "$SOURCE_ROOT/adapters" "$HOME_ROOT/.config/opencode" opencode
     link_directory "$SOURCE_ROOT/plugins/ex" "$HOME_ROOT/.agents/plugins/ex"
     link_directory "$SOURCE_ROOT/projects/depot" "$HOME_ROOT/.agents/projects/depot"
     link_directory "$HOME_ROOT/.agents/plugins/ex" "$HOME_ROOT/.claude/plugins/ex"
@@ -223,8 +239,9 @@ remove_projections() {
     unstow_package "$SOURCE_ROOT" "$HOME_ROOT/.claude/skills" skills
     unstow_package "$SOURCE_ROOT" "$HOME_ROOT/.codex/skills" skills
     unstow_package "$SOURCE_ROOT" "$HOME_ROOT/.agents/hooks" hooks
-    unstow_package "$SOURCE_ROOT" "$HOME_ROOT/.claude" claude
-    unstow_package "$SOURCE_ROOT" "$HOME_ROOT/.codex" codex marketplace.json
+    unstow_package "$SOURCE_ROOT/adapters" "$HOME_ROOT/.claude" claude
+    unstow_package "$SOURCE_ROOT/adapters" "$HOME_ROOT/.codex" codex marketplace.json
+    unstow_package "$SOURCE_ROOT/adapters" "$HOME_ROOT/.config/opencode" opencode
     matches_source "$HOME_ROOT/.claude/plugins/ex" "$HOME_ROOT/.agents/plugins/ex" &&
         remove_path "$HOME_ROOT/.claude/plugins/ex"
     matches_source "$HOME_ROOT/.agents/plugins/ex" "$SOURCE_ROOT/plugins/ex" &&
@@ -285,7 +302,9 @@ case "${1:-check}" in
         install_projections
         ;;
     restow)
-        remove_projections
+        if ! has_legacy_adapter_projections; then
+            remove_projections
+        fi
         install_projections
         ;;
     remove-skill)
