@@ -11,6 +11,9 @@ trust_level = "trusted"
 [projects."/home/michaelco/git"]
 trust_level = "trusted"
 
+[projects."/Users/michaelco/dotfiles"]
+trust_level = "trusted"
+
 [tui]
 theme = "ansi"
 status_line = ["model-with-reasoning", "current-dir", "git-branch", "context-remaining"]
@@ -23,10 +26,6 @@ status_line_use_colors = true
 hooks = true
 
 [hooks.state]
-
-[hooks.state."/home/michaelco/.codex/hooks.json:session_start:0:0"]
-trusted_hash = "sha256:8f67b5c178eb022063846d6d8c0bf89ffc797b8bdb7237843821da96505862e4"
-enabled = true
 
 [hooks.state."worktrunk@worktrunk:plugin.json#hooks[0]:permission_request:0:0"]
 trusted_hash = "sha256:b5f6112154fd814298da679652ea096e11434b7f2876d471eb00c790a68045d0"
@@ -45,7 +44,7 @@ enabled = true
 enabled = true
 
 [marketplaces.worktrunk]
-last_updated = "2026-07-15T15:06:36Z"
+last_updated = "2026-07-15T20:02:17Z"
 last_revision = "df5c5d68e1b995b92086a218cf6b167e5f543c32"
 source_type = "git"
 source = "https://github.com/max-sixty/worktrunk.git"
