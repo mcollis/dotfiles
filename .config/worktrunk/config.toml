@@ -13,33 +13,10 @@
 # the installer will NOT add this line — reconcile by hand.
 worktree-path = "{{ repo_path }}/../{{ repo | replace('.git', '') }}-worktrees/{{ branch | sanitize | lower }}"
 
-# ── CREATE: blocking, serial pipeline. Order: agents → exclude → envrc. ──────────
-# Project-local agent state is copied by the repository's neutral sync hook.
-[[pre-start]]
-agents = """
-set -e
-REPO_PATH={{ repo_path }}
-WT={{ worktree_path }}
-if [ -x "$REPO_PATH/wt-hooks/sync-agents.sh" ] && [ -d "$REPO_PATH/.agents" ]; then
-  "$REPO_PATH/wt-hooks/sync-agents.sh" "$REPO_PATH" "$WT"
-fi
-if [ -f "$REPO_PATH/.mcp.json" ]; then cp "$REPO_PATH/.mcp.json" "$WT/.mcp.json"; fi
-"""
-
-# Keep copied/generated paths out of commits (lands on the bare repo's info/exclude).
-[[pre-start]]
-exclude = """
-set -e
-WT={{ worktree_path }}
-EXCLUDE="$(git -C "$WT" rev-parse --git-common-dir)/info/exclude"
-for e in '.agents' '.claude' '.codex' '.opencode' '.mcp.json' '.playwright-mcp' '.envrc'; do
-  grep -qxF "$e" "$EXCLUDE" 2>/dev/null || echo "$e" >> "$EXCLUDE"
-done
-"""
-
+# ── CREATE: shared ExtraHop ticket environment. ───────────────────────────────
 # Write .envrc (TICKET_ID parsed from branch) and trust it with direnv.
-# Non-EX/OZ branches -> no TICKET_ID. Personal/project additions (e.g. a tmux
-# labeling call, dev-server ports) belong in your own config or .envrc, not here.
+# Non-EX/OZ branches get an empty .envrc. Project-specific setup belongs in a
+# remote-scoped Worktrunk block owned by that project's agent bundle.
 [[pre-start]]
 envrc = """
 set -e
@@ -52,18 +29,19 @@ TICKET=$(printf '%s' "$BRANCH" | grep -oiE '(ex|oz)-[0-9]+' | head -1 | tr 'a-z'
 command -v direnv >/dev/null 2>&1 && direnv allow "$WT/.envrc" || true
 """
 
-# ── REMOVE: delegate to per-repo hook scripts (untracked, in <bare>/wt-hooks/). ──
-[[pre-remove]]
-cleanup = """
-REPO_PATH={{ repo_path }}
+# Keep the shared ticket environment out of commits.
+[[pre-start]]
+exclude-envrc = """
+set -e
 WT={{ worktree_path }}
-[ -x "$REPO_PATH/wt-hooks/pre-remove.sh" ] && "$REPO_PATH/wt-hooks/pre-remove.sh" "$WT" "{{ branch }}" || true
-"""
-
-[[post-remove]]
-cleanup = """
-REPO_PATH={{ repo_path }}
-[ -x "$REPO_PATH/wt-hooks/post-remove.sh" ] && "$REPO_PATH/wt-hooks/post-remove.sh" "{{ branch }}" || true
+COMMON_DIR="$(git -C "$WT" rev-parse --git-common-dir)"
+case "$COMMON_DIR" in
+  /*) ;;
+  *) COMMON_DIR="$WT/$COMMON_DIR" ;;
+esac
+EXCLUDE="$COMMON_DIR/info/exclude"
+mkdir -p "$(dirname "$EXCLUDE")"
+grep -qxF '.envrc' "$EXCLUDE" 2>/dev/null || printf '%s\n' '.envrc' >> "$EXCLUDE"
 """
 
 # Alias: `wt ex EX-123` -> create the team-convention branch, stay in bare repo.
@@ -172,3 +150,18 @@ if [ -n "${TMUX:-}" ] && tmux list-panes -F '#{pane_id}' 2>/dev/null | grep -qxF
   done
 fi
 """
+
+# >>> depot-agents worktrunk (managed) >>>
+# Depot-specific lifecycle hooks. Installed by worktrunk/install.sh after the
+# bundle is projected to ~/.agents/projects/depot.
+
+[projects."gitlab.i.extrahop.com/core/depot".pre-start]
+agents = """
+"$HOME/.agents/projects/depot/worktrunk/pre-start.sh" "{{ repo_path }}" "{{ worktree_path }}" "{{ branch }}"
+"""
+
+[projects."gitlab.i.extrahop.com/core/depot".pre-remove]
+cleanup = """
+"$HOME/.agents/projects/depot/worktrunk/pre-remove.sh" "{{ worktree_path }}" "{{ branch }}"
+"""
+# <<< depot-agents worktrunk (managed) <<<
