@@ -21,14 +21,18 @@ Draft a well-structured commit message based on the current diff. Reads the repo
     - **If the conventions file defines a prefix/classification scheme (e.g., risk prefixes):** ask which to apply. NEVER auto-assign one — even if the diff looks "obviously safe" or "obviously risky". The choice belongs to the human author.
 6. Present the final message for approval. Do NOT commit without explicit confirmation.
 7. Before sending the final message, hard-wrap every prose body paragraph at
-   72 characters and verify the exact raw lines that will be sent:
+   72 characters and verify the exact raw lines that will be sent. This is a
+   mandatory output gate, not a formatting preference:
     - Use literal newline characters, not Markdown's visual soft wrapping.
     - Every nonblank prose body line must be 72 characters or fewer. Reflow
       at word boundaries; do not split a word, URL, or identifier.
     - Preserve one blank line between paragraphs and between the subject,
       body, and any footer.
-    - Check the final text block line by line. Reflow any overlong prose line
-      before sending it. Do not merely state that the body is wrapped.
+    - Pass the exact final text block through the `scripts/validate-wrap.sh`
+      script beside this `SKILL.md` before sending it. Do not present a final
+      message unless the command exits successfully.
+    - Reflow any line the validator reports. Do not merely state that the
+      body is wrapped.
     - A convention that explicitly requires a longer fixed-format line takes
       precedence; otherwise, flag an unbreakable token longer than 72
       characters instead of silently violating the limit.
