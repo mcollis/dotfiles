@@ -37,10 +37,12 @@ The Codex template contains portable defaults. Codex maintains its local
 project trust, plugin, and marketplace state after the copy.
 
 The Claude and Codex packages use relative skill-directory symlinks that Stow
-preserves. They resolve directly to `agents/.agents/skills`, so a skill created
-through either harness is created in the canonical repository directory and
-immediately shared. Codex writes its app-managed `skills/.system/` directory
-there, which is intentionally ignored.
+preserves. They resolve directly to `agents/.agents/skills`, and the `agents`
+package also exposes that directory at `~/.agents/skills`. A skill created
+through either harness is therefore immediately shared with tools that resolve
+skills through `~/.agents`. Codex writes its app-managed `skills/.system/`
+directory there; it is ignored by Git but remains available through the Stow
+deployment.
 
 Install only the packages wanted on a machine with, for example:
 
