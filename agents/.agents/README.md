@@ -28,20 +28,19 @@ the `agents`, `claude`, `codex`, or `opencode` packages:
 ```sh
 mkdir -p "$HOME/.claude" "$HOME/.codex" "$HOME/.config"
 [ -e "$HOME/.claude/settings.json" ] || cp templates/claude-settings.json "$HOME/.claude/settings.json"
-[ -e "$HOME/.codex/config.toml" ] || : > "$HOME/.codex/config.toml"
-mkdir -p "$HOME/.agents"
-ln -s "$(pwd)/agents/.agents/skills" "$HOME/.agents/skills"
-ln -s ../.agents/skills "$HOME/.claude/skills"
-ln -s ../.agents/skills "$HOME/.codex/skills"
+[ -s "$HOME/.codex/config.toml" ] || cp templates/codex-config.toml "$HOME/.codex/config.toml"
 ```
 
 Then follow the root README's dry-run and install commands.
 
-GNU Stow follows source directory symlinks, so it cannot create these three
-whole-directory links itself. They ensure a skill created through Claude or
-Codex is created in the canonical repository directory and immediately shared.
-Run them before first launching Codex on a new machine; Codex writes its
-app-managed `skills/.system/` directory there, which is intentionally ignored.
+The Codex template contains portable defaults. Codex maintains its local
+project trust, plugin, and marketplace state after the copy.
+
+The Claude and Codex packages use relative skill-directory symlinks that Stow
+preserves. They resolve directly to `agents/.agents/skills`, so a skill created
+through either harness is created in the canonical repository directory and
+immediately shared. Codex writes its app-managed `skills/.system/` directory
+there, which is intentionally ignored.
 
 Install only the packages wanted on a machine with, for example:
 

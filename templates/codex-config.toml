@@ -1,0 +1,16 @@
+# Codex creates and maintains machine-specific project, plugin, and marketplace
+# state in the copied local config.
+model_provider = "amazon-bedrock"
+model = "openai.gpt-5.6-terra"
+model_reasoning_effort = "high"
+
+[projects."/"]
+trust_level = "trusted"
+
+[tui]
+theme = "ansi"
+status_line = ["model-with-reasoning", "current-dir", "git-branch", "context-remaining"]
+status_line_use_colors = true
+
+[features]
+hooks = true
