@@ -1,20 +1,6 @@
 {
   "alwaysThinkingEnabled": true,
   "effortLevel": "high",
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "command": "bash \"$HOME/.claude/hooks/herdr-agent-state.sh\" session",
-            "timeout": 10,
-            "type": "command"
-          }
-        ],
-        "matcher": "*"
-      }
-    ]
-  },
   "model": "opus",
   "permissions": {
     "allow": [
