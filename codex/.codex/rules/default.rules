@@ -1,0 +1,12 @@
+# Require interactive confirmation before changing local or remote Git history.
+prefix_rule(
+    pattern = ["git", "commit"],
+    decision = "prompt",
+    justification = "Require confirmation before committing.",
+)
+
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "prompt",
+    justification = "Require confirmation before pushing.",
+)
