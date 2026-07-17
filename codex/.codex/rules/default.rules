@@ -10,3 +10,8 @@ prefix_rule(
     decision = "prompt",
     justification = "Require confirmation before pushing.",
 )
+prefix_rule(pattern=["jira-cli", "issue", "list"], decision="allow")
+prefix_rule(pattern=["jira-cli", "issue", "view"], decision="allow")
+prefix_rule(pattern=["/usr/bin/zsh", "-lc", "env UI_PORT=8082 STORYBOOK_PORT=6007 \"$(git rev-parse --show-toplevel)/.agents/skills/start-webpack/run.sh\""], decision="allow")
+prefix_rule(pattern=["docker", "exec", "home_michaelco_git_depot-worktrees_user-michaelco-ex-53907-stage-1", "bash", "-lc"], decision="allow")
+prefix_rule(pattern=[".agents/skills/ui-check/run.sh"], decision="allow")
