@@ -5,7 +5,7 @@ description: Help draft a commit message from the current diff. TRIGGER when use
 
 # Commit Message Helper
 
-Draft a well-structured commit message based on the current diff. Reads the repo's conventions file for project-specific format (risk prefixes, ticket footer, etc.) if one exists, and falls back to generic git conventions otherwise.
+Draft a well-structured commit message based on the current diff. Reads the repo's conventions file for project-specific format and footers when it exists, and falls back to generic git conventions otherwise.
 
 ## Instructions
 
@@ -18,7 +18,6 @@ Draft a well-structured commit message based on the current diff. Reads the repo
 5. Present the draft and ask for:
     - The ticket ID, if it couldn't be inferred
     - Any additional context about **why** the change was made
-    - **If the conventions file defines a prefix/classification scheme (e.g., risk prefixes):** ask which to apply. NEVER auto-assign one — even if the diff looks "obviously safe" or "obviously risky". The choice belongs to the human author.
 6. Present the final message for approval. Do NOT commit without explicit confirmation.
 7. Before sending the final message, hard-wrap every prose body paragraph at
    72 characters and verify the exact raw lines that will be sent. This is a
