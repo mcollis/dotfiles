@@ -90,6 +90,7 @@ fi
 eval "$(zoxide init zsh)"
 
 # --- direnv ---
+export HERDR_REMOTE_KEYBINDINGS=server
 export DIRENV_LOG_FORMAT=""
 command -v direnv > /dev/null && eval "$(direnv hook zsh)"
 
