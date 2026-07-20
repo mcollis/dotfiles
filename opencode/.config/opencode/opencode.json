@@ -73,5 +73,39 @@
       "~/.claude/**": "allow",
       "~/.local/share/direnv/**": "allow"
     }
+  },
+  "lsp": {
+    "lua": {
+      "command": ["lua-language-server"],
+      "extensions": [".lua"]
+    },
+    "json": {
+      "command": ["vscode-json-language-server", "--stdio"],
+      "extensions": [".json"]
+    },
+    "toml": {
+      "command": ["taplo", "lsp", "stdio"],
+      "extensions": [".toml"]
+    },
+    "bash": {
+      "command": ["bash-language-server", "start"],
+      "extensions": [".sh", ".bash", ".zsh"]
+    },
+    "yaml": {
+      "command": ["yaml-language-server", "--stdio"],
+      "extensions": [".yaml", ".yml"]
+    },
+    "typescript": {
+      "command": ["typescript-language-server", "--stdio"],
+      "extensions": [".ts", ".tsx", ".js", ".jsx"]
+    },
+    "python": {
+      "command": ["pyright-langserver", "--stdio"],
+      "extensions": [".py"]
+    },
+    "go": {
+      "command": ["gopls"],
+      "extensions": [".go"]
+    }
   }
 }
