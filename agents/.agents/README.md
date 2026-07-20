@@ -35,6 +35,9 @@ Then follow the root README's dry-run and install commands.
 
 The Codex template contains portable defaults. Codex maintains its local
 project trust, plugin, and marketplace state after the copy.
+Codex also appends machine-local command approvals to
+`~/.codex/rules/default.rules`; that file is not Stowed. Portable approval
+policy lives in the Stow-managed `~/.codex/rules/policy.rules`.
 
 The Claude and Codex packages use relative skill-directory symlinks that Stow
 preserves. They resolve directly to `agents/.agents/skills`, and the `agents`

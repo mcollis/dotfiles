@@ -1,0 +1,30 @@
+# Shared, durable approval policy.
+prefix_rule(
+    pattern = ["git", "commit"],
+    decision = "prompt",
+    justification = "Require confirmation before committing.",
+)
+
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "prompt",
+    justification = "Require confirmation before pushing.",
+)
+
+# Read-only issue and merge-request lookups.
+prefix_rule(pattern = ["jira-cli", "issue", "list"], decision = "allow")
+prefix_rule(pattern = ["jira-cli", "issue", "view"], decision = "allow")
+prefix_rule(pattern = ["glab", "mr", "view"], decision = "allow")
+
+# Read-only Git and Worktrunk inspection.
+prefix_rule(pattern = ["git", "status"], decision = "allow")
+prefix_rule(pattern = ["git", "diff"], decision = "allow")
+prefix_rule(pattern = ["git", "log"], decision = "allow")
+prefix_rule(pattern = ["git", "show"], decision = "allow")
+prefix_rule(pattern = ["git", "worktree", "list"], decision = "allow")
+prefix_rule(pattern = ["wt", "list"], decision = "allow")
+
+# Read-only Docker inspection.
+prefix_rule(pattern = ["docker", "ps"], decision = "allow")
+prefix_rule(pattern = ["docker", "inspect"], decision = "allow")
+prefix_rule(pattern = ["docker", "compose", "ps"], decision = "allow")
