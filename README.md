@@ -18,6 +18,20 @@ literal target paths, including hidden directories.
 See [the agent setup guide](agents/.agents/README.md) before installing
 the agent packages on a new machine.
 
+## Shell Bootstrap
+
+The shell configuration does not install software during startup. On macOS
+(with Homebrew) or Debian/Ubuntu, provision its dependencies explicitly before
+Stowing the `shell` package:
+
+```sh
+./scripts/bootstrap-shell.sh
+```
+
+This installs Zsh, `fzf`, `fd`, and `zoxide`, then checks out pinned revisions
+of Oh My Zsh and its configured plugins. Review and update the revisions in
+the script deliberately when upgrading them.
+
 ## Install
 
 Clone the repository, initialize its submodules, and enter the clone:
