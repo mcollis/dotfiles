@@ -17,14 +17,10 @@ swap_pane_up    = "prefix+shift+k"
 swap_pane_right = "prefix+shift+l"
 
 [[keys.command]]
-key = "prefix+shift+f"
-type = "shell"
-command = "herdr plugin action invoke open-lazygit --plugin herdr-lazygit"
-
-[[keys.command]]
-key = "prefix+shift+z"
-type = "shell"
-command = "herdr plugin action invoke open-lazygit-tab --plugin herdr-lazygit"
+key = "prefix+t"
+type = "plugin_action"
+command = "herdr-lazygit.open-lazygit-tab"
+description = "Open lazygit in a tab"
 
 [experimental]
 switch_ascii_input_source_in_prefix = true
