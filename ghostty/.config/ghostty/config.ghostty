@@ -3,8 +3,6 @@
 theme = Atom One Dark
 # theme = Dracula
 
-# Smooth out the edges
-window-decoration = false
 window-padding-x = 10
 window-padding-y = 10
 
@@ -19,7 +17,6 @@ font-thicken = true
 adjust-cell-height = 1 
 
 mouse-shift-capture = always
-window-decoration = client
 
 # Send Option as Alt (needed for alt+ keybindings in herdr/tmux)
 macos-option-as-alt = true
