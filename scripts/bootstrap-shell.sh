@@ -1,4 +1,4 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 set -euo pipefail
 
 # Update these revisions deliberately after testing the new versions locally.
@@ -10,7 +10,7 @@ install_dependencies() {
   case "$OSTYPE" in
     darwin*)
       command -v brew >/dev/null 2>&1 || {
-        print -u2 "Homebrew is required on macOS: https://brew.sh"
+        printf '%s\n' "Homebrew is required on macOS: https://brew.sh" >&2
         return 1
       }
       brew install zsh fzf fd zoxide
@@ -18,19 +18,19 @@ install_dependencies() {
       ;;
     linux-gnu*)
       [[ -r /etc/os-release ]] || {
-        print -u2 "Only Debian/Ubuntu Linux is supported."
+        printf '%s\n' "Only Debian/Ubuntu Linux is supported." >&2
         return 1
       }
       source /etc/os-release
       [[ " ${ID_LIKE:-} ${ID:-} " == *" debian "* ]] || {
-        print -u2 "Only Debian/Ubuntu Linux is supported."
+        printf '%s\n' "Only Debian/Ubuntu Linux is supported." >&2
         return 1
       }
       sudo apt-get update
       sudo apt-get install -y zsh fzf fd-find zoxide
       ;;
     *)
-      print -u2 "Unsupported platform: $OSTYPE"
+      printf '%s\n' "Unsupported platform: $OSTYPE" >&2
       return 1
       ;;
   esac
@@ -42,7 +42,7 @@ checkout_pinned_repository() {
   local revision=$3
 
   if [[ -e "$destination" && ! -d "$destination/.git" ]]; then
-    print -u2 "Refusing to replace non-Git path: $destination"
+    printf '%s\n' "Refusing to replace non-Git path: $destination" >&2
     return 1
   fi
 
@@ -61,4 +61,4 @@ checkout_pinned_repository "https://github.com/ohmyzsh/ohmyzsh.git" "$ZSH_DIR" "
 checkout_pinned_repository "https://github.com/zsh-users/zsh-autosuggestions.git" "$ZSH_DIR/custom/plugins/zsh-autosuggestions" "$AUTOSUGGESTIONS_REVISION"
 checkout_pinned_repository "https://github.com/zsh-users/zsh-syntax-highlighting.git" "$ZSH_DIR/custom/plugins/zsh-syntax-highlighting" "$SYNTAX_HIGHLIGHTING_REVISION"
 
-print "Shell dependencies installed. Restart your shell to load them."
+printf '%s\n' "Shell dependencies installed. Restart your shell to load them."
