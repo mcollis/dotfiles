@@ -5,6 +5,11 @@
 SEP=$''   # powerline right-pointing triangle (U+E0B2)
 CACHE=/tmp/tmux-vitals-cpu.$UID
 
+if [[ $(uname -s) != Linux ]]; then
+  printf '#[fg=colour0,bg=colour4,bold] #H '
+  exit 0
+fi
+
 # Memory % used
 read -r _ total _ <<<"$(awk '/^MemTotal:/{print $0}' /proc/meminfo)"
 read -r _ avail _ <<<"$(awk '/^MemAvailable:/{print $0}' /proc/meminfo)"
