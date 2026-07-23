@@ -1,0 +1,4 @@
+# Runtime dependencies are installed locally with npm and are not portable
+# dotfile configuration.
+^/\.config/opencode/node_modules(?:/.*)?$
+\.gitignore
