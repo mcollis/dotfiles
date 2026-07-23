@@ -50,6 +50,8 @@
       "git -C * tag --delete*": "ask",
       "git worktree*": "ask",
       "git -C * worktree*": "ask",
+      "git worktree list*": "allow",
+      "git -C * worktree list*": "allow",
       "glab mr create*": "ask",
       "glab mr merge*": "ask",
       "glab mr close*": "ask",
