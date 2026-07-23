@@ -23,6 +23,10 @@ When available and appropriate:
   remote, and pass it explicitly with `-R`.
 - Use `jira-cli --plain` for non-interactive Jira operations.
 - Use `wt` for worktree management in repositories configured for worktrunk.
+  To create a worktree for a Jira ticket, ALWAYS run `wt ex <TICKET-KEY>`
+  (e.g. `wt ex EX-56756`). This uses the configured team alias
+  (branch `user/$USER/<KEY>`). NEVER hand-craft a branch name with
+  `wt switch --create`, and NEVER append a summary slug to the branch.
 - Use installed plugin skills for specialized workflows instead of recreating
   their procedures.
 
