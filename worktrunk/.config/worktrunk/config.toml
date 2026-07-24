@@ -44,7 +44,10 @@ mkdir -p "$(dirname "$EXCLUDE")"
 grep -qxF '.envrc' "$EXCLUDE" 2>/dev/null || printf '%s\n' '.envrc' >> "$EXCLUDE"
 """
 
-# Alias: `wt ex EX-123` -> create the team-convention branch, stay in bare repo.
+# Alias: `wt ex EX-123` -> create the team-convention branch without cd-ing into
+# it (`--no-cd`); your surface manager (herdr/tmux) opens the new worktree. Works
+# with a plain non-bare clone — `repo_path` stays pinned to the main checkout, so
+# the worktree-path template resolves to <parent>/<repo>-worktrees/<slug>.
 # NOTE: singleton [aliases] table. If your config already has [aliases], the
 # installer adds this block anyway (TOML merges tables), but a duplicate `ex`
 # key within it is an error — remove your own `ex` alias first if you have one.
