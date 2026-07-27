@@ -5,9 +5,11 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 
 # --- PATH ---
+export PNPM_HOME="$HOME/.local/share/pnpm"
 [[ ":$PATH:" != *":$HOME/.local/bin:"* ]] && PATH="$HOME/.local/bin:$PATH"
 [[ -d /opt/nvim && ":$PATH:" != *":/opt/nvim:"* ]] && PATH="/opt/nvim:$PATH"
 [[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]] && PATH="$HOME/.cargo/bin:$PATH"
+[[ ":$PATH:" != *":$PNPM_HOME/bin:"* ]] && PATH="$PNPM_HOME/bin:$PATH"
 
 # --- Oh My Zsh ---
 export ZSH="$HOME/.oh-my-zsh"
