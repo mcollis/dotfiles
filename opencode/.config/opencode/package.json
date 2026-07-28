@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@aws/bedrock-token-generator": "^1.1.0",
     "@opencode-ai/plugin": "1.17.7"
   }
 }
