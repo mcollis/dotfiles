@@ -53,4 +53,5 @@ hiding them in compound shell pipelines.
 
 # Git
 
-Never include `Co-Authored-By` lines in commits.
+Before drafting or running `git commit`, load and follow the
+`commit-message` skill. Never include `Co-Authored-By` lines in commits.
