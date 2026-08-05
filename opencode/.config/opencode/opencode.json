@@ -97,6 +97,7 @@
       "glab issue update*": "ask",
       "glab release create*": "ask",
       "glab release delete*": "ask",
+      "glab api*": "ask",
       "gh pr create*": "ask",
       "gh pr merge*": "ask",
       "gh pr close*": "ask",
@@ -111,7 +112,9 @@
       "/tmp/**": "allow",
       "~/.claude/**": "allow",
       "~/.local/share/direnv/**": "allow"
-    }
+    },
+    "gitlab_checkpoint_save": "ask",
+    "gitlab_checkpoint_resume": "allow"
   },
   "lsp": {
     "lua": {
