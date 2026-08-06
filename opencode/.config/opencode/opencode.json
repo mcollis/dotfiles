@@ -8,9 +8,6 @@
       "model": "bedrock-mantle-responses/openai.gpt-5.6-sol",
       "options": {
         "reasoningEffort": "high"
-      },
-      "permission": {
-        "gitlab_checkpoint_save": "deny"
       }
     }
   },
@@ -115,9 +112,7 @@
       "/tmp/**": "allow",
       "~/.claude/**": "allow",
       "~/.local/share/direnv/**": "allow"
-    },
-    "gitlab_checkpoint_save": "allow",
-    "gitlab_checkpoint_resume": "allow"
+    }
   },
   "lsp": {
     "lua": {
