@@ -19,14 +19,16 @@ import { join } from "node:path"
 //   - Auto-resume: the checkpoint (if any) is silently injected as context
 //     on the first message of a new session. Reads are non-destructive, so
 //     this needs no confirmation.
-//   - Auto-checkpoint: saves happen automatically — on meaningful idle
-//     (after a few turns or enough elapsed time), immediately after
-//     compaction, and immediately on an explicit /checkpoint. There is no
-//     ctx.ask() gate on writes; safety comes from ticket-only scoping,
-//     ticket-level serialization, compare-and-swap, secret scanning, and
-//     merge-before-write — not from a human click. The generated Markdown
-//     is produced in a throwaway child session (agent: build, no
-//     file/bash/task tools) so it never pollutes the visible conversation.
+//   - Auto-checkpoint: saves happen automatically — 2 minutes after the
+//     session actually goes quiet (debounced; a new prompt cancels the
+//     pending save and it re-arms next time the session goes idle),
+//     immediately after compaction, and immediately on an explicit
+//     /checkpoint. There is no ctx.ask() gate on writes; safety comes from
+//     ticket-only scoping, ticket-level serialization, compare-and-swap,
+//     secret scanning, and merge-before-write — not from a human click.
+//     The generated Markdown is produced in a throwaway child session
+//     (agent: build, no file/bash/task tools) so it never pollutes the
+//     visible conversation.
 //   - Opt-out: `/scratch <task>` marks the current session to skip both
 //     auto-resume and auto-checkpoint (in-memory only — does not survive an
 //     OpenCode restart). `CACHE=0` disables both automatic pathways for the
@@ -38,8 +40,12 @@ const RUN_SH = `${process.env.HOME}/.agents/plugins/ex/skills/context-checkpoint
 // saves. Explicit /checkpoint and /resume still work.
 const AUTOMATION_DISABLED = process.env.CACHE === "0"
 
-const MIN_TURNS_BEFORE_IDLE_SAVE = 3
-const MIN_INTERVAL_MS_BEFORE_IDLE_SAVE = 10 * 60 * 1000 // 10 minutes
+// "Idle" in OpenCode means "the agent just finished responding," not "the
+// user has been inactive" — it fires after every completed prompt. Saving
+// on every idle would mean saving after every single message, so instead
+// we debounce: each idle (re)starts this countdown, and it only actually
+// fires if the session stays quiet — no new prompt — for the full window.
+const IDLE_DEBOUNCE_MS = 2 * 60 * 1000 // 2 minutes
 
 const CHECKPOINT_SYSTEM_PROMPT = `You maintain a persistent Markdown checkpoint for one ticket. It serves two \
 purposes: letting a later session (possibly on a different machine, after \
@@ -144,9 +150,12 @@ export default (async ({ $, client }) => {
 
   // --- Session bookkeeping -------------------------------------------------
 
-  // Root (non-child) sessions we've seen, so idle/compaction handling never
-  // fires for subagent/task child sessions (ours or the user's).
-  const rootSessions = new Set<string>()
+  // Child (subagent/task) sessions we've seen, so idle/compaction handling
+  // never fires for them — only for the primary session a human is
+  // actually talking to. Populated from session.created's parentID; a
+  // session we haven't seen created (shouldn't normally happen) is treated
+  // as relevant by default rather than silently ignored.
+  const childSessions = new Set<string>()
   // Sessions we created ourselves to generate checkpoint Markdown. Fully
   // ignored by every hook — never dirtied, never auto-saved, never injected.
   const internalSessions = new Set<string>()
@@ -160,19 +169,47 @@ export default (async ({ $, client }) => {
   //   undefined = not yet checked, null = nothing to inject, string = ready
   const checkpointCache = new Map<string, string | null>()
 
-  const dirty = new Set<string>()
-  const turnsSinceSave = new Map<string, number>()
-  const lastSaveAt = new Map<string, number>()
+  // Dirty tracking is generation-based, not a plain boolean, so a save
+  // in flight can't clobber a newer change that arrived while it was
+  // still reading/generating/writing. A session is dirty whenever its
+  // dirtyGeneration is ahead of its savedGeneration.
+  const dirtyGeneration = new Map<string, number>()
+  const savedGeneration = new Map<string, number>()
+  const pendingSaveTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const lastSavedHash = new Map<string, string>() // per ticket
 
-  // Serializes saves so overlapping idle/compaction/manual triggers for the
-  // same process never race each other's read-merge-write cycle.
+  // Serializes saves (automatic and manual alike) so overlapping
+  // idle/compaction/manual triggers for the same process never race each
+  // other's read-merge-write cycle.
   let saveChain: Promise<void> = Promise.resolve()
+  const withSaveChain = <T>(fn: () => Promise<T>): Promise<T> => {
+    const result = saveChain.catch(() => {}).then(fn)
+    saveChain = result.then(
+      () => undefined,
+      () => undefined,
+    )
+    return result
+  }
 
   const hash = (s: string) => createHash("sha256").update(s).digest("hex")
 
   const isRelevantSession = (sessionID: string) =>
-    !internalSessions.has(sessionID) && rootSessions.has(sessionID) && !scratchSessions.has(sessionID)
+    !internalSessions.has(sessionID) && !childSessions.has(sessionID) && !scratchSessions.has(sessionID)
+
+  const markDirty = (sessionID: string) => {
+    dirtyGeneration.set(sessionID, (dirtyGeneration.get(sessionID) ?? 0) + 1)
+  }
+
+  const isDirty = (sessionID: string) =>
+    (dirtyGeneration.get(sessionID) ?? 0) !== (savedGeneration.get(sessionID) ?? 0)
+
+  const clearPendingSave = (sessionID: string) => {
+    const timer = pendingSaveTimers.get(sessionID)
+    if (timer) {
+      clearTimeout(timer)
+      pendingSaveTimers.delete(sessionID)
+    }
+  }
 
   // --- Auto-resume (read-only, silent) -------------------------------------
 
@@ -318,15 +355,17 @@ export default (async ({ $, client }) => {
     }
   }
 
-  const resetSaveState = (rootSessionID: string) => {
-    dirty.delete(rootSessionID)
-    turnsSinceSave.set(rootSessionID, 0)
-    lastSaveAt.set(rootSessionID, Date.now())
-  }
-
   const doSave = async (rootSessionID: string, reason: string): Promise<void> => {
     const t = ticket()
     if (!t) return
+
+    // Snapshot which "version" of dirty we're about to capture. If a new
+    // message arrives while we're still reading/generating/writing below,
+    // dirtyGeneration will have moved past this by the time we finish —
+    // and savedGeneration must not be advanced past what we actually
+    // captured, or that newer change would be lost (treated as saved when
+    // it never was).
+    const targetGeneration = dirtyGeneration.get(rootSessionID) ?? 0
 
     const existing = await readExistingCheckpoint()
     if (existing === undefined) {
@@ -339,7 +378,7 @@ export default (async ({ $, client }) => {
 
     const bodyHash = hash(markdown)
     if (lastSavedHash.get(t) === bodyHash) {
-      resetSaveState(rootSessionID)
+      savedGeneration.set(rootSessionID, targetGeneration)
       return
     }
 
@@ -363,7 +402,8 @@ export default (async ({ $, client }) => {
       }
 
       if (result.startsWith("ERROR")) {
-        // Leave dirty so the next idle/compaction trigger retries.
+        // Leave dirty (don't advance savedGeneration) so the next
+        // idle/compaction trigger retries.
         await client.app
           .log({ body: { service: "gitlab-checkpoint", level: "warn", message: "auto-save failed", extra: { reason, result } } })
           .catch(() => {})
@@ -371,7 +411,7 @@ export default (async ({ $, client }) => {
       }
 
       lastSavedHash.set(t, bodyHash)
-      resetSaveState(rootSessionID)
+      savedGeneration.set(rootSessionID, targetGeneration)
       client.tui
         .showToast({ body: { title: "Checkpoint saved", message: `${t} (${reason})`, variant: "info" } })
         .catch(() => {})
@@ -380,13 +420,31 @@ export default (async ({ $, client }) => {
     }
   }
 
-  const scheduleSave = (rootSessionID: string, reason: string) => {
-    saveChain = saveChain.catch(() => {}).then(() => doSave(rootSessionID, reason))
-    return saveChain
+  const scheduleSave = (rootSessionID: string, reason: string) => withSaveChain(() => doSave(rootSessionID, reason))
+
+  // Debounced idle trigger: every idle event restarts this session's
+  // countdown. It only actually fires once the session has gone genuinely
+  // quiet for the full window — a new prompt (chat.message) cancels it
+  // outright, and the next idle after that re-arms a fresh countdown.
+  const scheduleIdleSave = (sessionID: string) => {
+    clearPendingSave(sessionID)
+    const timer = setTimeout(() => {
+      pendingSaveTimers.delete(sessionID)
+      if (!isRelevantSession(sessionID) || !isDirty(sessionID)) return
+      scheduleSave(sessionID, "idle").catch(() => {})
+    }, IDLE_DEBOUNCE_MS)
+    pendingSaveTimers.set(sessionID, timer)
   }
 
   return {
     dispose: async () => {
+      // Don't just drop a debounced save that hasn't fired yet — we're
+      // exiting, so there's no point waiting for the session to "go
+      // quiet"; flush it now instead, within the shutdown budget below.
+      for (const id of [...pendingSaveTimers.keys()]) {
+        clearPendingSave(id)
+        if (isRelevantSession(id) && isDirty(id)) scheduleSave(id, "shutdown").catch(() => {})
+      }
       await Promise.race([saveChain.catch(() => {}), new Promise((resolve) => setTimeout(resolve, 3000))])
     },
 
@@ -394,7 +452,7 @@ export default (async ({ $, client }) => {
       if (event.type === "session.created") {
         const info = event.properties.info
         if (!info) return
-        if (!info.parentID) rootSessions.add(info.id)
+        if (info.parentID) childSessions.add(info.id)
         // Best-effort warm-up so the injection is usually ready before the
         // first chat.message hook needs it. Skipped when automation is
         // disabled, or for our own worker sessions (harmless either way,
@@ -411,14 +469,14 @@ export default (async ({ $, client }) => {
         // Explicit deletion races removal of the session's data server-side
         // — never read messages or start a model call here. Just drop our
         // own bookkeeping for it.
-        rootSessions.delete(id)
+        clearPendingSave(id)
+        childSessions.delete(id)
         internalSessions.delete(id)
         scratchSessions.delete(id)
         injectedSessions.delete(id)
         checkpointCache.delete(id)
-        dirty.delete(id)
-        turnsSinceSave.delete(id)
-        lastSaveAt.delete(id)
+        dirtyGeneration.delete(id)
+        savedGeneration.delete(id)
         return
       }
 
@@ -426,20 +484,17 @@ export default (async ({ $, client }) => {
 
       if (event.type === "session.status" && event.properties.status?.type === "idle") {
         const id = event.properties.sessionID
-        if (!isRelevantSession(id)) return
-        turnsSinceSave.set(id, (turnsSinceSave.get(id) ?? 0) + 1)
-        if (!dirty.has(id)) return
-        const turns = turnsSinceSave.get(id) ?? 0
-        const elapsed = Date.now() - (lastSaveAt.get(id) ?? 0)
-        if (turns >= MIN_TURNS_BEFORE_IDLE_SAVE || elapsed >= MIN_INTERVAL_MS_BEFORE_IDLE_SAVE) {
-          scheduleSave(id, "idle").catch(() => {})
-        }
+        if (!isRelevantSession(id) || !isDirty(id)) return
+        scheduleIdleSave(id)
         return
       }
 
       if (event.type === "session.compacted") {
         const id = event.properties.sessionID
         if (!isRelevantSession(id)) return
+        // Compaction is a good moment to snapshot regardless of the idle
+        // debounce — context is about to be compressed, so don't wait.
+        clearPendingSave(id)
         scheduleSave(id, "compaction").catch(() => {})
       }
     },
@@ -453,8 +508,6 @@ export default (async ({ $, client }) => {
     "chat.message": async (input, output) => {
       const sessionID = input.sessionID
       if (!sessionID || internalSessions.has(sessionID)) return
-
-      rootSessions.add(sessionID) // best-effort; session.created should have already added it
 
       if (!AUTOMATION_DISABLED && !scratchSessions.has(sessionID) && !injectedSessions.has(sessionID)) {
         injectedSessions.add(sessionID)
@@ -477,7 +530,11 @@ export default (async ({ $, client }) => {
       }
 
       if (!AUTOMATION_DISABLED && !scratchSessions.has(sessionID)) {
-        dirty.add(sessionID)
+        // A new prompt means the session is active again — cancel any
+        // countdown from a previous idle so it doesn't fire mid-conversation;
+        // the next idle after this one re-arms it.
+        clearPendingSave(sessionID)
+        markDirty(sessionID)
       }
     },
 
@@ -521,17 +578,24 @@ export default (async ({ $, client }) => {
           )
           writeFileSync(bodyPath, args.body, { mode: 0o600 })
           try {
-            const saveArgs = ["save", args.title, bodyPath]
-            if (args.expectedUpdatedAt) saveArgs.push(args.expectedUpdatedAt)
-            const result = await run(saveArgs)
+            // Route through the same serialization as automatic saves so a
+            // concurrent idle/compaction save can't race this write.
+            const result = await withSaveChain(async () => {
+              const saveArgs = ["save", args.title, bodyPath]
+              if (args.expectedUpdatedAt) saveArgs.push(args.expectedUpdatedAt)
+              return run(saveArgs)
+            })
             if (result.startsWith("ERROR")) {
               return { title: "Checkpoint not saved", output: result }
             }
             const t = ticket()
             if (t) lastSavedHash.set(t, hash(args.body))
-            // Don't let an idle/compaction trigger immediately regenerate a
-            // near-duplicate right after this explicit save.
-            if (ctx.sessionID) resetSaveState(ctx.sessionID)
+            // Don't let a pending idle/compaction trigger immediately
+            // regenerate a near-duplicate right after this explicit save.
+            if (ctx.sessionID) {
+              clearPendingSave(ctx.sessionID)
+              savedGeneration.set(ctx.sessionID, dirtyGeneration.get(ctx.sessionID) ?? 0)
+            }
             return { title: "Checkpoint saved", output: result.trim() }
           } finally {
             unlinkSync(bodyPath)
