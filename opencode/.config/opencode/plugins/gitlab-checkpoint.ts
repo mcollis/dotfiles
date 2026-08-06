@@ -56,39 +56,71 @@ work, supersede outdated statements explicitly, or mark items cancelled, \
 but do not silently drop prior Decisions/Findings/Changes/Verification/\
 References that are still accurate.
 
-Use exactly these section headers, in this order:
+If the existing checkpoint uses an older, plainer layout (flat "## Goal" \
+/ "## Decisions" / etc. headers with no title or status line), migrate \
+its content into the layout below on this save — carry every fact \
+forward, don't just paste the old body underneath the new headers.
 
-## Status
-One of: Active, Blocked, Completed, Abandoned.
+Use exactly this layout, in this order:
 
-## Goal
+# <TICKET>: <short human title for the ticket, a few words>
 
-## Outcome
-What ultimately happened. Leave this section empty while Status is Active.
+> **Status:** \`<ACTIVE|BLOCKED|COMPLETED|ABANDONED>\`
+> **Current focus:** <the single most relevant one-line thing right now>
+> **Updated:** <use the exact "Updated" value given below>
 
-## Decisions
+---
 
-## Findings
+## Workboard
 
-## Plan
+A Markdown task list. Preserve existing items verbatim across saves. \
+Check off items that are now done (\`- [x]\`). Add new items discovered \
+this session. Never delete an item — mark a superseded one as \
+\`- [x] ~~text~~ (cancelled)\` instead.
 
-## Progress
-A Markdown task list. Preserve existing items verbatim. Check off items \
-that are now done (- [x]). Add new items discovered this session. Never \
-delete an item — mark superseded ones as \`- [x] ~~text~~ (cancelled)\`.
+**Next move:** <the single next concrete action, one line>
 
-## Blockers
+### Blockers
 
-## Next steps
+Bullet list of open blockers, or the literal text \`_None._\` if there \
+are none.
 
-## Changes
-Key files/components touched. Not raw diffs.
+---
 
-## Verification
-Tests run and their results.
+## Context
 
-## References
-Jira issue, MR, relevant commits.
+### Goal
+
+### Decisions
+
+Bullet list. Bold a short label for each decision, then the detail, e.g. \
+\`- **Storage:** one snippet per ticket.\`
+
+### Findings
+
+---
+
+## Delivery
+
+### Changes
+
+A short Markdown table of key files/components touched, with columns \
+\`Area\` and \`Summary\`. Not raw diffs. Use \`_None yet._\` if nothing has \
+changed yet.
+
+### Verification
+
+A Markdown task list of tests run and their results (checked if passing).
+
+### References
+
+Bullet list, e.g. \`- Jira: <ticket>\`, \`- Merge request: <url or \
+_Not opened_>\`.
+
+### Outcome
+
+What ultimately happened. Use the literal text \`_In progress._\` while \
+Status is ACTIVE or BLOCKED.
 
 Be thorough but concise. Preserve exact file paths, commands, and error \
 text where they matter.`
@@ -212,6 +244,17 @@ export default (async ({ $, client }) => {
     }
   }
 
+  const formatTrigger = (reason: string): string => {
+    switch (reason) {
+      case "idle":
+        return "OpenCode (idle save)"
+      case "compaction":
+        return "OpenCode (after compaction)"
+      default:
+        return `OpenCode (${reason})`
+    }
+  }
+
   const generateCheckpointMarkdown = async (
     rootSessionID: string,
     existing: ExistingCheckpoint | null,
@@ -221,9 +264,12 @@ export default (async ({ $, client }) => {
     const existingBlock = existing?.body
       ? `Existing checkpoint (last updated ${existing.updatedAt}):\n\n${existing.body}`
       : "No existing checkpoint — this is the first save for this ticket."
+    const updatedValue = `${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC via ${formatTrigger(reason)}`
 
     const userPrompt =
-      `Ticket: ${ticket()}\nTrigger: ${reason}\n\n${existingBlock}\n\n` +
+      `Ticket: ${ticket()}\n` +
+      `Use this exact value for the "Updated" line: ${updatedValue}\n\n` +
+      `${existingBlock}\n\n` +
       `Recent conversation excerpt from the working session:\n\n${transcript}`
 
     let child: { id: string } | undefined
@@ -453,9 +499,12 @@ export default (async ({ $, client }) => {
           body: tool.schema
             .string()
             .describe(
-              "Markdown body with clear section headers: Status, Goal, Outcome, Decisions, Findings, Plan, " +
-                "Progress (a task list), Blockers, Next steps, Changes, Verification, References. Should be a " +
-                "merge of any existing checkpoint plus what's new — never a regression.",
+              "Markdown body using the layout: a '# <TICKET>: <title>' heading, a blockquote with Status/" +
+                "Current focus/Updated, a Workboard task list with a Blockers subsection, a Context section " +
+                "(Goal/Decisions/Findings), and a Delivery section (Changes/Verification/References/Outcome). " +
+                "See the /checkpoint command for the exact template. Should be a merge of any existing " +
+                "checkpoint plus what's new — never a regression, and migrate an older plain-header " +
+                "checkpoint into this layout rather than leaving it as-is.",
             ),
           expectedUpdatedAt: tool.schema
             .string()
