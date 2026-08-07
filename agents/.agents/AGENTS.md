@@ -52,7 +52,12 @@ When available and appropriate:
 - Use `ast-grep` for structural code search and codemods. Invoke it as
   `ast-grep`, not `sg`.
 - Use `glab` for GitLab operations, derive the project from the repository
-  remote, and pass it explicitly with `-R`.
+  remote, and pass it explicitly with `-R`. Always use the ambient
+  `GITLAB_TOKEN` (intentionally read-only). Never unset or override
+  `GITLAB_TOKEN`/`GITLAB_ACCESS_TOKEN`/`OAUTH_TOKEN`, pass custom
+  authentication headers, or otherwise fall back to credentials stored by
+  `glab` — the bundled context-checkpoint backend is the sole exception, and
+  it manages that fallback internally.
 - Use `jira-cli --plain` for non-interactive Jira operations.
 - Use `wt` for worktree management in repositories configured for worktrunk.
   To create a worktree for a Jira ticket, ALWAYS run `wt ex <TICKET-KEY>`
