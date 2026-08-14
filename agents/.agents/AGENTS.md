@@ -53,11 +53,15 @@ When available and appropriate:
   `ast-grep`, not `sg`.
 - Use `glab` for GitLab operations, derive the project from the repository
   remote, and pass it explicitly with `-R`. Always use the ambient
-  `GITLAB_TOKEN` (intentionally read-only). Never unset or override
-  `GITLAB_TOKEN`/`GITLAB_ACCESS_TOKEN`/`OAUTH_TOKEN`, pass custom
+  `GITLAB_TOKEN` (intentionally read-only) by default. Never unset or
+  override `GITLAB_TOKEN`/`GITLAB_ACCESS_TOKEN`/`OAUTH_TOKEN`, pass custom
   authentication headers, or otherwise fall back to credentials stored by
-  `glab` — the bundled context-checkpoint backend is the sole exception, and
-  it manages that fallback internally.
+  `glab` unless the user explicitly authorizes that credential override for a
+  specific GitLab operation in the current turn. Scope an authorized override
+  to that single command, never expose credential values, and do not carry
+  the authorization forward to later operations. The bundled
+  context-checkpoint backend remains exempt and manages its fallback
+  internally.
 - Use `jira-cli --plain` for non-interactive Jira operations.
 - Use `wt` for worktree management in repositories configured for worktrunk.
   To create a worktree for a Jira ticket, ALWAYS run `wt ex <TICKET-KEY>`
