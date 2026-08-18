@@ -9,6 +9,15 @@ readonly DEPOT_FRAGMENT="$HOME/.agents/projects/depot/worktrunk/depot.toml"
 readonly BACKUP_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/yadm/worktrunk"
 readonly LOCK_DIR="${XDG_RUNTIME_DIR:-/tmp}/yadm-worktrunk-config.lock"
 
+if command -v yadm >/dev/null 2>&1; then
+  readonly YADM_BIN="$(command -v yadm)"
+elif [[ -x /usr/bin/yadm ]]; then
+  readonly YADM_BIN=/usr/bin/yadm
+else
+  printf '%s\n' 'yadm is required to generate Worktrunk configuration.' >&2
+  exit 1
+fi
+
 MODE=apply
 case "${1:-}" in
   '') ;;
@@ -18,7 +27,7 @@ case "${1:-}" in
 esac
 
 is_work_machine() {
-  yadm config --get-all local.class 2>/dev/null | grep -qx 'Work'
+  "$YADM_BIN" config --get-all local.class 2>/dev/null | grep -qx 'Work'
 }
 
 command -v wt >/dev/null 2>&1 || {

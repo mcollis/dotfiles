@@ -5,8 +5,17 @@ readonly EX_ROOT="$HOME/.agents/plugins/ex"
 readonly MARKETPLACE='ex-agents-marketplace'
 readonly CLAUDE_SOURCE="$EX_ROOT/.claude-plugin/marketplace.json"
 
+if command -v yadm >/dev/null 2>&1; then
+  readonly YADM_BIN="$(command -v yadm)"
+elif [[ -x /usr/bin/yadm ]]; then
+  readonly YADM_BIN=/usr/bin/yadm
+else
+  printf '%s\n' 'yadm is required to register EX plugins.' >&2
+  exit 1
+fi
+
 is_work_machine() {
-  yadm config --get-all local.class 2>/dev/null | grep -qx 'Work'
+  "$YADM_BIN" config --get-all local.class 2>/dev/null | grep -qx 'Work'
 }
 
 json_matches() {
