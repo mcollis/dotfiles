@@ -1,14 +1,11 @@
 # Application-owned state. Stable files are tracked explicitly below.
 /.claude/*
 !/.claude/CLAUDE.md
-!/.claude/skills
 !/.claude/statusline.sh
 /.codex/*
 !/.codex/AGENTS.md
-!/.codex/skills
 !/.codex/rules/
 !/.codex/rules/policy.rules
-/.agents/skills/.system/
 /.agents/.skill-lock.json
 /.config/opencode/commands/
 /.config/opencode/node_modules/

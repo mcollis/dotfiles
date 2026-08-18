@@ -66,6 +66,13 @@ yadm push
 
 Do not run `yadm add .`, `yadm add -A`, or `yadm add --all` from `$HOME`.
 
+## Agent Skills
+
+Shared standalone skills live in `~/.agents/skills`. Codex and OpenCode
+discover that directory natively. Claude owns `~/.claude/skills` and receives
+only an explicit `commit-message` link. EX and Depot bundle and register their
+own skills through their respective plugins and worktree hooks.
+
 After receiving updates:
 
 ```sh

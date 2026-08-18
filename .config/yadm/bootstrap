@@ -26,25 +26,68 @@ copy_if_missing() {
   fi
 }
 
+replace_legacy_skills_link() {
+  local destination=$1 target=$2
+  if [[ -L "$destination" ]]; then
+    [[ "$(/usr/bin/readlink "$destination")" == "$target" ]] || {
+      printf 'Refusing to replace skills link with a different target: %s\n' "$destination" >&2
+      exit 1
+    }
+    rm "$destination"
+  elif [[ -e "$destination" && ! -d "$destination" ]]; then
+    printf 'Refusing to replace non-directory skills path: %s\n' "$destination" >&2
+    exit 1
+  fi
+  mkdir -p "$destination"
+}
+
+configure_agent_skills() {
+  local claude_skills="$HOME/.claude/skills"
+  local codex_skills="$HOME/.codex/skills"
+  local legacy_system_skills="$HOME/.agents/skills/.system"
+  local claude_commit_message="$claude_skills/commit-message"
+
+  replace_legacy_skills_link "$codex_skills" '../.agents/skills'
+  if [[ -e "$legacy_system_skills" ]]; then
+    [[ ! -e "$codex_skills/.system" ]] || {
+      printf 'Refusing to overwrite Codex system skills: %s\n' "$codex_skills/.system" >&2
+      exit 1
+    }
+    mv "$legacy_system_skills" "$codex_skills/.system"
+  fi
+
+  replace_legacy_skills_link "$claude_skills" '../.agents/skills'
+  if [[ ! -e "$claude_commit_message" ]]; then
+    ln -s ../../.agents/skills/commit-message "$claude_commit_message"
+  elif [[ -L "$claude_commit_message" ]] && [[ "$(/usr/bin/readlink "$claude_commit_message")" != ../../.agents/skills/commit-message ]]; then
+    printf 'Refusing to replace Claude commit-message link with a different target.\n' >&2
+    exit 1
+  elif [[ ! -L "$claude_commit_message" ]]; then
+    printf 'Refusing to replace Claude commit-message path: %s\n' "$claude_commit_message" >&2
+    exit 1
+  fi
+}
+
+remove_legacy_opencode_skills_link() {
+  local skills="$HOME/.config/opencode/skills"
+  if [[ -L "$skills" ]] && [[ "$(/usr/bin/readlink "$skills")" == ../../.agents/plugins/ex/skills ]]; then
+    rm "$skills"
+  fi
+}
+
 "$YADM_BIN" config yadm.alt-copy true
 "$YADM_BIN" alt
 
 copy_if_missing "$YADM_DIR/templates/claude-settings.json" "$HOME/.claude/settings.json"
 copy_if_missing "$YADM_DIR/templates/codex-config.toml" "$HOME/.codex/config.toml"
+configure_agent_skills
 
 if is_work_machine; then
   "$YADM_BIN" submodule sync --recursive
   "$YADM_BIN" submodule update --init --recursive
 
   "$SCRIPTS_DIR/register-ex-plugins"
-
-  mkdir -p "$HOME/.config/opencode"
-  if [[ ! -e "$HOME/.config/opencode/skills" ]]; then
-    ln -s ../../.agents/plugins/ex/skills "$HOME/.config/opencode/skills"
-  elif [[ -L "$HOME/.config/opencode/skills" ]] && [[ "$(/usr/bin/readlink "$HOME/.config/opencode/skills")" != ../../.agents/plugins/ex/skills ]]; then
-    printf '%s\n' "Refusing to replace OpenCode skills link with a different target." >&2
-    exit 1
-  fi
+  remove_legacy_opencode_skills_link
 else
   work_artifacts=0
   if [[ -f "$HOME/.config/opencode/plugins/ex.ts" ]] && grep -q 'Generic bootstrap for OpenCode integrations shipped inside the `ex`' "$HOME/.config/opencode/plugins/ex.ts"; then
@@ -52,7 +95,7 @@ else
     work_artifacts=1
   fi
   if [[ -L "$HOME/.config/opencode/skills" ]] && [[ "$(/usr/bin/readlink "$HOME/.config/opencode/skills")" == ../../.agents/plugins/ex/skills ]]; then
-    rm "$HOME/.config/opencode/skills"
+    remove_legacy_opencode_skills_link
     work_artifacts=1
   fi
   if [[ "$work_artifacts" == 1 ]]; then

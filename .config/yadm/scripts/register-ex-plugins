@@ -23,13 +23,19 @@ json_matches() {
   python3 -c "$program" <<<"$json"
 }
 
+plugin_version() {
+  python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$1"
+}
+
 reconcile_claude() {
   command -v claude >/dev/null 2>&1 || {
     printf '%s\n' "Claude CLI not installed; skipped EX registration."
     return
   }
 
-  local marketplaces installed
+  local marketplaces installed expected_version install_path
+  expected_version=$(plugin_version "$EX_ROOT/.claude-plugin/plugin.json")
+  claude plugin validate --strict "$EX_ROOT/.claude-plugin/plugin.json" >/dev/null
   marketplaces=$(claude plugin marketplace list --json)
   if ! json_matches "$marketplaces" "import json,sys; source='$CLAUDE_SOURCE'; print(any(m.get('name') == '$MARKETPLACE' and m.get('path') == source for m in json.load(sys.stdin)))" | grep -qx True; then
     if json_matches "$marketplaces" "import json,sys; print(any(m.get('name') == '$MARKETPLACE' for m in json.load(sys.stdin)))" | grep -qx True; then
@@ -39,14 +45,34 @@ reconcile_claude() {
   fi
 
   installed=$(claude plugin list --json)
-  if json_matches "$installed" "import json,sys; print(any(p.get('id') == 'ex@$MARKETPLACE' and p.get('enabled') for p in json.load(sys.stdin)))" | grep -qx True; then
-    return
-  fi
-  if json_matches "$installed" "import json,sys; print(any(p.get('id') == 'ex@$MARKETPLACE' for p in json.load(sys.stdin)))" | grep -qx True; then
+  if ! json_matches "$installed" "import json,sys; print(any(p.get('id') == 'ex@$MARKETPLACE' for p in json.load(sys.stdin)))" | grep -qx True; then
+    claude plugin install --scope user "ex@$MARKETPLACE"
+  elif ! json_matches "$installed" "import json,sys; print(any(p.get('id') == 'ex@$MARKETPLACE' and p.get('version') == '$expected_version' for p in json.load(sys.stdin)))" | grep -qx True; then
+    claude plugin uninstall --scope user "ex@$MARKETPLACE"
+    rm -rf "$HOME/.claude/plugins/cache/$MARKETPLACE/ex"
+    claude plugin install --scope user "ex@$MARKETPLACE"
+  elif ! json_matches "$installed" "import json,sys; print(any(p.get('id') == 'ex@$MARKETPLACE' and p.get('enabled') for p in json.load(sys.stdin)))" | grep -qx True; then
     claude plugin enable "ex@$MARKETPLACE"
   else
-    claude plugin install --scope user "ex@$MARKETPLACE"
+    install_path=$(python3 -c "import json,sys; print(next(p['installPath'] for p in json.load(sys.stdin) if p.get('id') == 'ex@$MARKETPLACE'))" <<<"$installed")
+    if ! claude plugin validate --strict "$install_path/.claude-plugin/plugin.json" >/dev/null; then
+      claude plugin uninstall --scope user "ex@$MARKETPLACE"
+      rm -rf "$HOME/.claude/plugins/cache/$MARKETPLACE/ex"
+      claude plugin install --scope user "ex@$MARKETPLACE"
+    fi
   fi
+
+  installed=$(claude plugin list --json)
+  json_matches "$installed" "import json,sys; print(any(p.get('id') == 'ex@$MARKETPLACE' and p.get('enabled') and p.get('version') == '$expected_version' for p in json.load(sys.stdin)))" | grep -qx True || {
+    printf '%s\n' 'Claude EX plugin did not install at the expected version.' >&2
+    exit 1
+  }
+  install_path=$(python3 -c "import json,sys; print(next(p['installPath'] for p in json.load(sys.stdin) if p.get('id') == 'ex@$MARKETPLACE'))" <<<"$installed")
+  claude plugin validate --strict "$install_path/.claude-plugin/plugin.json" >/dev/null
+  claude plugin details "ex@$MARKETPLACE" | grep -qx "ex $expected_version" || {
+    printf '%s\n' 'Claude EX plugin component inventory did not resolve.' >&2
+    exit 1
+  }
 }
 
 reconcile_codex() {
@@ -55,7 +81,8 @@ reconcile_codex() {
     return
   }
 
-  local marketplaces installed
+  local marketplaces installed expected_version
+  expected_version=$(plugin_version "$EX_ROOT/.codex-plugin/plugin.json")
   marketplaces=$(codex plugin marketplace list --json)
   if ! json_matches "$marketplaces" "import json,sys; source='$EX_ROOT'; print(any(m.get('name') == '$MARKETPLACE' and m.get('marketplaceSource', {}).get('source') == source for m in json.load(sys.stdin).get('marketplaces', [])))" | grep -qx True; then
     if json_matches "$marketplaces" "import json,sys; print(any(m.get('name') == '$MARKETPLACE' for m in json.load(sys.stdin).get('marketplaces', [])))" | grep -qx True; then
@@ -65,21 +92,20 @@ reconcile_codex() {
   fi
 
   installed=$(codex plugin list --marketplace "$MARKETPLACE" --json)
-  if json_matches "$installed" "import json,sys; print(any(p.get('pluginId') == 'ex@$MARKETPLACE' and p.get('enabled') for p in json.load(sys.stdin).get('installed', [])))" | grep -qx True; then
+  if json_matches "$installed" "import json,sys; print(any(p.get('pluginId') == 'ex@$MARKETPLACE' and p.get('enabled') and p.get('version') == '$expected_version' for p in json.load(sys.stdin).get('installed', [])))" | grep -qx True; then
     return
   fi
   if json_matches "$installed" "import json,sys; print(any(p.get('pluginId') == 'ex@$MARKETPLACE' for p in json.load(sys.stdin).get('installed', [])))" | grep -qx True; then
     codex plugin remove "ex@$MARKETPLACE"
   fi
   codex plugin add "ex@$MARKETPLACE"
-}
 
-remove=0
-case "${1:-}" in
-  '') ;;
-  --remove) remove=1 ;;
-  *) printf 'usage: %s [--remove]\n' "$0" >&2; exit 2 ;;
-esac
+  installed=$(codex plugin list --marketplace "$MARKETPLACE" --json)
+  json_matches "$installed" "import json,sys; print(any(p.get('pluginId') == 'ex@$MARKETPLACE' and p.get('enabled') and p.get('version') == '$expected_version' for p in json.load(sys.stdin).get('installed', [])))" | grep -qx True || {
+    printf '%s\n' 'Codex EX plugin did not install at the expected version.' >&2
+    exit 1
+  }
+}
 
 remove_plugins() {
   if command -v claude >/dev/null 2>&1 && claude plugin list --json | python3 -c "import json,sys; raise SystemExit(0 if any(p.get('id') == 'ex@$MARKETPLACE' for p in json.load(sys.stdin)) else 1)"; then
@@ -91,6 +117,14 @@ remove_plugins() {
     codex plugin marketplace remove "$MARKETPLACE" || true
   fi
 }
+
+remove=0
+case "${1:-}" in
+  '') ;;
+  --remove) remove=1 ;;
+  *) printf 'usage: %s [--remove]\n' "$0" >&2; exit 2 ;;
+esac
+
 
 if [[ "$remove" == 1 ]]; then
   remove_plugins
