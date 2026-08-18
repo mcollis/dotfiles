@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly SCRIPTS_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/yadm/scripts"
+status=0
+
+is_work_machine() {
+  yadm config --get-all local.class 2>/dev/null | grep -qx 'Work'
+}
+
+check_command() {
+  if command -v "$1" >/dev/null 2>&1; then
+    printf 'ok      %s\n' "$1"
+  else
+    printf 'missing %s\n' "$1"
+    status=1
+  fi
+}
+
+if is_work_machine; then
+  printf '%s\n' 'Profile: Work'
+else
+  printf '%s\n' 'Profile: default'
+fi
+
+check_command yadm
+check_command wt
+check_command herdr
+check_command claude
+check_command codex
+
+if command -v wt >/dev/null 2>&1 && ! "$SCRIPTS_DIR/generate-worktrunk-config" --check; then
+  status=1
+fi
+
+if is_work_machine; then
+  if yadm submodule status --recursive | grep -q '^-'; then
+    printf '%s\n' 'missing Work submodule checkout'
+    status=1
+  else
+    printf '%s\n' 'ok      Work submodules'
+  fi
+fi
+
+if command -v herdr >/dev/null 2>&1; then
+  herdr integration status || status=1
+fi
+
+if [[ ! -d "$HOME/.config/opencode/node_modules" ]]; then
+  printf '%s\n' 'missing OpenCode dependencies: npm ci --prefix ~/.config/opencode'
+  status=1
+fi
+
+exit "$status"

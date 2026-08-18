@@ -1,0 +1,4 @@
+# Portable Worktrunk preferences. Worktrunk uses its own default worktree path.
+[list]
+full = true
+branches = true

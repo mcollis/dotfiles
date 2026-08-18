@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly EX_ROOT="$HOME/.agents/plugins/ex"
+readonly MARKETPLACE='ex-agents-marketplace'
+readonly CLAUDE_SOURCE="$EX_ROOT/.claude-plugin/marketplace.json"
+
+is_work_machine() {
+  yadm config --get-all local.class 2>/dev/null | grep -qx 'Work'
+}
+
+json_matches() {
+  local json=$1 program=$2
+  python3 -c "$program" <<<"$json"
+}
+
+reconcile_claude() {
+  command -v claude >/dev/null 2>&1 || {
+    printf '%s\n' "Claude CLI not installed; skipped EX registration."
+    return
+  }
+
+  local marketplaces installed
+  marketplaces=$(claude plugin marketplace list --json)
+  if ! json_matches "$marketplaces" "import json,sys; source='$CLAUDE_SOURCE'; print(any(m.get('name') == '$MARKETPLACE' and m.get('path') == source for m in json.load(sys.stdin)))" | grep -qx True; then
+    if json_matches "$marketplaces" "import json,sys; print(any(m.get('name') == '$MARKETPLACE' for m in json.load(sys.stdin)))" | grep -qx True; then
+      claude plugin marketplace remove "$MARKETPLACE"
+    fi
+    claude plugin marketplace add --scope user "$CLAUDE_SOURCE"
+  fi
+
+  installed=$(claude plugin list --json)
+  if json_matches "$installed" "import json,sys; print(any(p.get('id') == 'ex@$MARKETPLACE' and p.get('enabled') for p in json.load(sys.stdin)))" | grep -qx True; then
+    return
+  fi
+  if json_matches "$installed" "import json,sys; print(any(p.get('id') == 'ex@$MARKETPLACE' for p in json.load(sys.stdin)))" | grep -qx True; then
+    claude plugin enable "ex@$MARKETPLACE"
+  else
+    claude plugin install --scope user "ex@$MARKETPLACE"
+  fi
+}
+
+reconcile_codex() {
+  command -v codex >/dev/null 2>&1 || {
+    printf '%s\n' "Codex CLI not installed; skipped EX registration."
+    return
+  }
+
+  local marketplaces installed
+  marketplaces=$(codex plugin marketplace list --json)
+  if ! json_matches "$marketplaces" "import json,sys; source='$EX_ROOT'; print(any(m.get('name') == '$MARKETPLACE' and m.get('marketplaceSource', {}).get('source') == source for m in json.load(sys.stdin).get('marketplaces', [])))" | grep -qx True; then
+    if json_matches "$marketplaces" "import json,sys; print(any(m.get('name') == '$MARKETPLACE' for m in json.load(sys.stdin).get('marketplaces', [])))" | grep -qx True; then
+      codex plugin marketplace remove "$MARKETPLACE"
+    fi
+    codex plugin marketplace add "$EX_ROOT"
+  fi
+
+  installed=$(codex plugin list --marketplace "$MARKETPLACE" --json)
+  if json_matches "$installed" "import json,sys; print(any(p.get('pluginId') == 'ex@$MARKETPLACE' and p.get('enabled') for p in json.load(sys.stdin).get('installed', [])))" | grep -qx True; then
+    return
+  fi
+  if json_matches "$installed" "import json,sys; print(any(p.get('pluginId') == 'ex@$MARKETPLACE' for p in json.load(sys.stdin).get('installed', [])))" | grep -qx True; then
+    codex plugin remove "ex@$MARKETPLACE"
+  fi
+  codex plugin add "ex@$MARKETPLACE"
+}
+
+remove=0
+case "${1:-}" in
+  '') ;;
+  --remove) remove=1 ;;
+  *) printf 'usage: %s [--remove]\n' "$0" >&2; exit 2 ;;
+esac
+
+remove_plugins() {
+  if command -v claude >/dev/null 2>&1 && claude plugin list --json | python3 -c "import json,sys; raise SystemExit(0 if any(p.get('id') == 'ex@$MARKETPLACE' for p in json.load(sys.stdin)) else 1)"; then
+    claude plugin uninstall "ex@$MARKETPLACE"
+    claude plugin marketplace remove "$MARKETPLACE" || true
+  fi
+  if command -v codex >/dev/null 2>&1 && codex plugin list --marketplace "$MARKETPLACE" --json | python3 -c "import json,sys; raise SystemExit(0 if any(p.get('pluginId') == 'ex@$MARKETPLACE' for p in json.load(sys.stdin).get('installed', [])) else 1)"; then
+    codex plugin remove "ex@$MARKETPLACE"
+    codex plugin marketplace remove "$MARKETPLACE" || true
+  fi
+}
+
+if [[ "$remove" == 1 ]]; then
+  remove_plugins
+  exit 0
+fi
+
+is_work_machine || exit 0
+[[ -f "$CLAUDE_SOURCE" ]] || {
+  printf '%s\n' "EX submodule is not initialized at $EX_ROOT." >&2
+  exit 1
+}
+
+reconcile_claude
+reconcile_codex

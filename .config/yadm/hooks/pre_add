@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+case "${YADM_HOOK_FULL_COMMAND:-}" in
+  *' add .'|*' add -A'*|*' add --all'*)
+    printf '%s\n' 'Refusing broad yadm add; add explicit paths instead.' >&2
+    exit 1
+    ;;
+esac

@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+"${XDG_CONFIG_HOME:-$HOME/.config}/yadm/scripts/doctor" || true

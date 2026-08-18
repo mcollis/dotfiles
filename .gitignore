@@ -1,1 +1,25 @@
-/.claude/
+# Application-owned state. Stable files are tracked explicitly below.
+/.claude/*
+!/.claude/CLAUDE.md
+!/.claude/skills
+!/.claude/statusline.sh
+/.codex/*
+!/.codex/AGENTS.md
+!/.codex/skills
+!/.codex/rules/
+!/.codex/rules/policy.rules
+/.agents/skills/.system/
+/.agents/.skill-lock.json
+/.config/opencode/commands/
+/.config/opencode/node_modules/
+/.config/opencode/plugins/ex.ts
+/.config/opencode/plugins/herdr-agent-state.js
+/.config/opencode/skills
+/.config/worktrunk/config.toml
+/.config/yadm/config
+/.local/share/yadm/
+
+# Per-repository and machine-local state.
+.envrc
+.mcp.json
+.playwright-mcp

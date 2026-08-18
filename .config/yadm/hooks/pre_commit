@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+while IFS= read -r path; do
+  case "$path" in
+    .claude/CLAUDE.md|.claude/skills|.claude/statusline.sh) ;;
+    .claude/*) printf 'Refusing to commit application-owned state: %s\n' "$path" >&2; exit 1 ;;
+    .codex/AGENTS.md|.codex/skills|.codex/rules/policy.rules##*) ;;
+    .codex/*) printf 'Refusing to commit application-owned state: %s\n' "$path" >&2; exit 1 ;;
+    .config/opencode/.gitignore|.config/opencode/opencode.json##*|.config/opencode/package.json|.config/opencode/package-lock.json|.config/opencode/tui.json|.config/opencode/plugins/aws-sso-auth.ts|.config/opencode/plugins/ex.ts##*|.config/opencode/plugins/notify.ts|.config/opencode/plugins/worktrunk.ts) ;;
+    .config/opencode/*) printf 'Refusing to commit application-owned state: %s\n' "$path" >&2; exit 1 ;;
+    .config/worktrunk/base.toml##*) ;;
+    .config/worktrunk/*|.agents/skills/.system/*|.local/share/yadm/*) printf 'Refusing to commit generated state: %s\n' "$path" >&2; exit 1 ;;
+  esac
+done < <(git --git-dir="$YADM_HOOK_REPO" --work-tree="$YADM_HOOK_WORK" diff --cached --name-only)

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "amazon-bedrock/us.anthropic.claude-sonnet-5",
+  "small_model": "amazon-bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "default_agent": "plan",
+  "agent": {
+    "plan": {
+      "model": "amazon-bedrock/openai.gpt-5.6-sol",
+      "options": { "reasoningEffort": "high" }
+    }
+  },
+  "instructions": ["~/.agents/AGENTS.md"],
+  "provider": {
+    "amazon-bedrock": { "options": { "region": "us-east-2" } }
+  },
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "rm *": "ask",
+      "rmdir *": "ask",
+      "unlink *": "ask",
+      "shred *": "ask",
+      "find * -delete*": "ask",
+      "find * -exec*": "ask",
+      "sh -c *": "ask",
+      "bash -c *": "ask",
+      "zsh -c *": "ask",
+      "sudo *": "ask",
+      "doas *": "ask",
+      "dd *": "ask",
+      "mkfs*": "ask",
+      "npm publish*": "ask",
+      "pnpm publish*": "ask",
+      "yarn npm publish*": "ask",
+      "cargo publish*": "ask",
+      "twine upload*": "ask",
+      "git commit*": "ask",
+      "git -C * commit*": "ask",
+      "git push*": "ask",
+      "git -C * push*": "ask",
+      "git rebase*": "ask",
+      "git -C * rebase*": "ask",
+      "git reset --hard*": "ask",
+      "git -C * reset --hard*": "ask",
+      "git clean*": "ask",
+      "git -C * clean*": "ask",
+      "git restore*": "ask",
+      "git -C * restore*": "ask",
+      "git checkout --*": "ask",
+      "git -C * checkout --*": "ask",
+      "git branch -D*": "ask",
+      "git -C * branch -D*": "ask",
+      "git branch -d*": "ask",
+      "git -C * branch -d*": "ask",
+      "git tag -d*": "ask",
+      "git tag --delete*": "ask",
+      "git -C * tag -d*": "ask",
+      "git -C * tag --delete*": "ask",
+      "git worktree*": "ask",
+      "git -C * worktree*": "ask",
+      "git worktree list*": "allow",
+      "git -C * worktree list*": "allow",
+      "gh pr create*": "ask",
+      "gh pr merge*": "ask",
+      "gh pr close*": "ask",
+      "gh pr review*": "ask",
+      "gh issue create*": "ask",
+      "gh issue close*": "ask",
+      "gh issue edit*": "ask",
+      "gh release create*": "ask",
+      "gh release delete*": "ask"
+    },
+    "external_directory": {
+      "/tmp/**": "allow",
+      "~/.claude/**": "allow",
+      "~/.local/share/direnv/**": "allow"
+    }
+  },
+  "lsp": {
+    "lua": { "command": ["lua-language-server"], "extensions": [".lua"] },
+    "json": { "command": ["vscode-json-language-server", "--stdio"], "extensions": [".json"] },
+    "toml": { "command": ["taplo", "lsp", "stdio"], "extensions": [".toml"] },
+    "bash": { "command": ["bash-language-server", "start"], "extensions": [".sh", ".bash", ".zsh"] },
+    "yaml": { "command": ["yaml-language-server", "--stdio"], "extensions": [".yaml", ".yml"] },
+    "typescript": { "command": ["typescript-language-server", "--stdio"], "extensions": [".ts", ".tsx", ".js", ".jsx"] },
+    "python": { "command": ["pyright-langserver", "--stdio"], "extensions": [".py"] },
+    "go": { "command": ["gopls"], "extensions": [".go"] }
+  }
+}

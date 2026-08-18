@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly YADM_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/yadm"
+readonly SCRIPTS_DIR="$YADM_DIR/scripts"
+
+is_work_machine() {
+  yadm config --get-all local.class 2>/dev/null | grep -qx 'Work'
+}
+
+copy_if_missing() {
+  local source=$1 destination=$2
+  if [[ ! -e "$destination" ]]; then
+    mkdir -p "$(dirname "$destination")"
+    cp "$source" "$destination"
+    printf 'Seeded %s\n' "$destination"
+  fi
+}
+
+yadm config yadm.alt-copy true
+yadm alt
+
+copy_if_missing "$YADM_DIR/templates/claude-settings.json" "$HOME/.claude/settings.json"
+copy_if_missing "$YADM_DIR/templates/codex-config.toml" "$HOME/.codex/config.toml"
+
+if is_work_machine; then
+  yadm submodule sync --recursive
+  yadm submodule update --init --recursive
+
+  "$SCRIPTS_DIR/register-ex-plugins"
+
+  mkdir -p "$HOME/.config/opencode"
+  if [[ ! -e "$HOME/.config/opencode/skills" ]]; then
+    ln -s ../../.agents/plugins/ex/skills "$HOME/.config/opencode/skills"
+  elif [[ -L "$HOME/.config/opencode/skills" ]] && [[ "$(/usr/bin/readlink "$HOME/.config/opencode/skills")" != ../../.agents/plugins/ex/skills ]]; then
+    printf '%s\n' "Refusing to replace OpenCode skills link with a different target." >&2
+    exit 1
+  fi
+else
+  work_artifacts=0
+  if [[ -f "$HOME/.config/opencode/plugins/ex.ts" ]] && grep -q 'Generic bootstrap for OpenCode integrations shipped inside the `ex`' "$HOME/.config/opencode/plugins/ex.ts"; then
+    rm "$HOME/.config/opencode/plugins/ex.ts"
+    work_artifacts=1
+  fi
+  if [[ -L "$HOME/.config/opencode/skills" ]] && [[ "$(/usr/bin/readlink "$HOME/.config/opencode/skills")" == ../../.agents/plugins/ex/skills ]]; then
+    rm "$HOME/.config/opencode/skills"
+    work_artifacts=1
+  fi
+  if [[ "$work_artifacts" == 1 ]]; then
+    "$SCRIPTS_DIR/register-ex-plugins" --remove
+  fi
+fi
+
+if command -v wt >/dev/null 2>&1; then
+  "$SCRIPTS_DIR/generate-worktrunk-config"
+else
+  printf '%s\n' "Worktrunk is not installed; run generate-worktrunk-config after installing wt."
+fi
+
+if ! command -v herdr >/dev/null 2>&1; then
+  printf '%s\n' "Herdr is not installed; install integrations through the Herdr TUI when available."
+fi
+
+if [[ ! -d "$HOME/.config/opencode/node_modules" ]]; then
+  printf '%s\n' "OpenCode dependencies are absent; run: npm ci --prefix ~/.config/opencode"
+fi
