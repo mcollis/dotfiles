@@ -10,7 +10,7 @@ while IFS= read -r path; do
     .claude/*) printf 'Refusing to commit application-owned state: %s\n' "$path" >&2; exit 1 ;;
     .codex/AGENTS.md|.codex/rules/policy.rules##*) ;;
     .codex/*) printf 'Refusing to commit application-owned state: %s\n' "$path" >&2; exit 1 ;;
-    .config/opencode/.gitignore|.config/opencode/opencode.json##*|.config/opencode/package.json|.config/opencode/package-lock.json|.config/opencode/tui.json|.config/opencode/plugins/aws-sso-auth.ts|.config/opencode/plugins/ex.ts##*|.config/opencode/plugins/notify.ts|.config/opencode/plugins/worktrunk.ts) ;;
+    .config/opencode/.gitignore|.config/opencode/opencode.json##*|.config/opencode/package.json|.config/opencode/package-lock.json|.config/opencode/tui.json|.config/opencode/plugins/aws-sso-auth.ts|.config/opencode/plugins/ex.ts##*|.config/opencode/plugins/notify.ts|.config/opencode/plugins/worktrunk.ts|.config/opencode/plugins/secret-redactor.ts|.config/opencode/tests/secret-redactor.test.mts) ;;
     .config/opencode/*) printf 'Refusing to commit application-owned state: %s\n' "$path" >&2; exit 1 ;;
     .config/worktrunk/base.toml##*) ;;
     .config/worktrunk/*|.agents/skills/.system/*|.local/share/yadm/*) printf 'Refusing to commit generated state: %s\n' "$path" >&2; exit 1 ;;
