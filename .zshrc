@@ -11,6 +11,10 @@ export PNPM_HOME="$HOME/.local/share/pnpm"
 [[ ":$PATH:" != *":$HOME/.cargo/bin:"* ]] && PATH="$HOME/.cargo/bin:$PATH"
 [[ ":$PATH:" != *":$PNPM_HOME/bin:"* ]] && PATH="$PNPM_HOME/bin:$PATH"
 
+# --- Editor ---
+export EDITOR=nvim
+export VISUAL=nvim
+
 # --- Oh My Zsh ---
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="powerlevel10k/powerlevel10k"
