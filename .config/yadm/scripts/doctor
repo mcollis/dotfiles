@@ -37,6 +37,7 @@ check_command wt
 check_command herdr
 check_command claude
 check_command codex
+check_command jq
 
 if command -v wt >/dev/null 2>&1 && ! "$SCRIPTS_DIR/generate-worktrunk-config" --check; then
   status=1
@@ -53,6 +54,12 @@ fi
 
 if command -v herdr >/dev/null 2>&1; then
   herdr integration status || status=1
+  if herdr plugin list --plugin local.sysmon --json 2>/dev/null | grep -q '"plugin_id":"local.sysmon"'; then
+    printf '%s\n' 'ok      herdr sysmon plugin'
+  else
+    printf '%s\n' 'missing herdr sysmon plugin (run: yadm bootstrap)'
+    status=1
+  fi
 fi
 
 if [[ ! -d "$HOME/.config/opencode/node_modules" ]]; then

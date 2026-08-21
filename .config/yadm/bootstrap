@@ -109,7 +109,9 @@ else
   printf '%s\n' "Worktrunk is not installed; run generate-worktrunk-config after installing wt."
 fi
 
-if ! command -v herdr >/dev/null 2>&1; then
+if command -v herdr >/dev/null 2>&1; then
+  herdr plugin link "$HOME/.config/herdr/plugins/sysmon"
+else
   printf '%s\n' "Herdr is not installed; install integrations through the Herdr TUI when available."
 fi
 

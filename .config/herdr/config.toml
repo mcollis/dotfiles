@@ -1,14 +1,27 @@
 onboarding = false
 [ui]
-agent_panel_sort = "spaces"
+agent_panel_sort = "priority"
+status_indicators = "symbols"
+hide_tab_bar_when_single_tab = true
+window_title = "{hostname}: {workspace} — {terminal_title}"
 
 show_agent_labels_on_pane_borders = true
 
 [ui.sidebar.spaces]
 row_gap = 1
 rows = [
-  [{ token = "state_icon" }, { token = "workspace", bold = true }],
-  [{ token = "branch", dim = true }, { token = "git_status", dim = true }],
+  ["state_icon", "workspace"],
+  ["branch", "git_status"],
+  [
+    "$sys_cpu_unknown",
+    { token = "$sys_cpu_ok", fg = "#98c379" },
+    { token = "$sys_cpu_warn", fg = "#e5c07b" },
+    { token = "$sys_cpu_hot", fg = "#e06c75" },
+    "$sys_mem_unknown",
+    { token = "$sys_mem_ok", fg = "#98c379" },
+    { token = "$sys_mem_warn", fg = "#e5c07b" },
+    { token = "$sys_mem_hot", fg = "#e06c75" },
+  ],
 ]
 
 [ui.sidebar.agents]
@@ -17,15 +30,8 @@ row_gap = 1
 [theme]
 name = "one-dark"
 
-auto_switch = false
 [ui.toast]
 delivery = "herdr"
-
-[keys]
-swap_pane_left  = "prefix+shift+h"
-swap_pane_down  = "prefix+shift+j"
-swap_pane_up    = "prefix+shift+k"
-swap_pane_right = "prefix+shift+l"
 
 [[keys.command]]
 key = "prefix+t"

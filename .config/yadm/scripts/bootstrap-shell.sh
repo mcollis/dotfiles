@@ -13,7 +13,7 @@ install_dependencies() {
         printf '%s\n' "Homebrew is required on macOS: https://brew.sh" >&2
         return 1
       }
-      brew install zsh fzf fd zoxide
+      brew install zsh fzf fd zoxide jq
       "$(brew --prefix fzf)/install" --key-bindings --completion --no-update-rc
       ;;
     linux-gnu*)
@@ -27,7 +27,7 @@ install_dependencies() {
         return 1
       }
       sudo apt-get update
-      sudo apt-get install -y zsh fzf fd-find zoxide
+      sudo apt-get install -y zsh fzf fd-find zoxide jq
       ;;
     *)
       printf '%s\n' "Unsupported platform: $OSTYPE" >&2
