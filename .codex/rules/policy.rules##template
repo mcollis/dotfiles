@@ -1,6 +1,15 @@
 # Shared, durable approval policy.
-prefix_rule(pattern = ["git", "commit"], decision = "prompt")
-prefix_rule(pattern = ["git", "push"], decision = "prompt")
+prefix_rule(
+    pattern = ["git", "commit"],
+    decision = "prompt",
+    justification = "Require confirmation before committing.",
+)
+
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "prompt",
+    justification = "Require confirmation before pushing.",
+)
 
 # Destructive filesystem, repository, and system operations.
 prefix_rule(pattern = ["rm"], decision = "prompt")
@@ -32,7 +41,21 @@ prefix_rule(pattern = ["yarn", "npm", "publish"], decision = "prompt")
 prefix_rule(pattern = ["cargo", "publish"], decision = "prompt")
 prefix_rule(pattern = ["twine", "upload"], decision = "prompt")
 
+{% if yadm.class == "Work" %}
+# Externally visible GitHub and GitLab writes.
+prefix_rule(pattern = ["glab", "mr", "create"], decision = "prompt")
+prefix_rule(pattern = ["glab", "mr", "merge"], decision = "prompt")
+prefix_rule(pattern = ["glab", "mr", "close"], decision = "prompt")
+prefix_rule(pattern = ["glab", "mr", "note", "create"], decision = "prompt")
+prefix_rule(pattern = ["glab", "mr", "update"], decision = "prompt")
+prefix_rule(pattern = ["glab", "issue", "create"], decision = "prompt")
+prefix_rule(pattern = ["glab", "issue", "close"], decision = "prompt")
+prefix_rule(pattern = ["glab", "issue", "update"], decision = "prompt")
+prefix_rule(pattern = ["glab", "release", "create"], decision = "prompt")
+prefix_rule(pattern = ["glab", "release", "delete"], decision = "prompt")
+{% else %}
 # Externally visible GitHub writes.
+{% endif %}
 prefix_rule(pattern = ["gh", "pr", "create"], decision = "prompt")
 prefix_rule(pattern = ["gh", "pr", "merge"], decision = "prompt")
 prefix_rule(pattern = ["gh", "pr", "close"], decision = "prompt")
@@ -43,6 +66,13 @@ prefix_rule(pattern = ["gh", "issue", "edit"], decision = "prompt")
 prefix_rule(pattern = ["gh", "release", "create"], decision = "prompt")
 prefix_rule(pattern = ["gh", "release", "delete"], decision = "prompt")
 
+{% if yadm.class == "Work" %}
+# Read-only issue and merge-request lookups.
+prefix_rule(pattern = ["jira-cli", "issue", "list"], decision = "allow")
+prefix_rule(pattern = ["jira-cli", "issue", "view"], decision = "allow")
+prefix_rule(pattern = ["glab", "mr", "view"], decision = "allow")
+
+{% endif %}
 # Read-only Git and Worktrunk inspection.
 prefix_rule(pattern = ["git", "status"], decision = "allow")
 prefix_rule(pattern = ["git", "diff"], decision = "allow")

@@ -5,6 +5,18 @@
   "permissions": {
     "allow": [
       "Skill(commit-message)",
+{% if yadm.class == "Work" %}
+      "Bash(glab mr list*)",
+      "Bash(glab mr view*)",
+      "Bash(glab mr note list*)",
+      "Bash(glab mr checks*)",
+      "Bash(glab mr diff*)",
+      "Bash(glab issue list*)",
+      "Bash(glab issue view*)",
+      "Bash(jira-cli issue view*)",
+      "Bash(jira-cli issue list*)",
+      "Bash(jira-cli sprint list*)",
+{% endif %}
       "Read(/tmp/**)"
     ],
     "ask": [
@@ -50,6 +62,18 @@
       "Bash(yarn npm publish *)",
       "Bash(cargo publish *)",
       "Bash(twine upload *)",
+{% if yadm.class == "Work" %}
+      "Bash(glab mr create*)",
+      "Bash(glab mr merge*)",
+      "Bash(glab mr close*)",
+      "Bash(glab mr note create*)",
+      "Bash(glab mr update*)",
+      "Bash(glab issue create*)",
+      "Bash(glab issue close*)",
+      "Bash(glab issue update*)",
+      "Bash(glab release create*)",
+      "Bash(glab release delete*)",
+{% endif %}
       "Bash(gh pr create*)",
       "Bash(gh pr merge*)",
       "Bash(gh pr close*)",

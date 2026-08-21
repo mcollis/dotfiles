@@ -66,6 +66,7 @@
       "git -C * worktree*": "ask",
       "git worktree list*": "allow",
       "git -C * worktree list*": "allow",
+{% if yadm.class == "Work" %}
       "glab mr create*": "ask",
       "glab mr merge*": "ask",
       "glab mr close*": "ask",
@@ -92,6 +93,7 @@
       "*unset *GITLAB_TOKEN*": "ask",
       "*unset *GITLAB_ACCESS_TOKEN*": "ask",
       "*unset *OAUTH_TOKEN*": "ask",
+{% endif %}
       "gh pr create*": "ask",
       "gh pr merge*": "ask",
       "gh pr close*": "ask",

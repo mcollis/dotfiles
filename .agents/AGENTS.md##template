@@ -10,12 +10,12 @@ not continue into the next logical stage, adjacent cleanup, or optional
 improvements. Mention useful follow-ups briefly instead of performing them.
 
 Treat project checks, tests, linting, builds or rebuilds, generated-file
-updates, commits, pushes, merge request or Jira changes, CI operations, and
-status polling as separate work unless explicitly requested or included in an
-approved plan. Authorization for one action does not authorize later actions.
-Tool access or a permission prompt permits execution but does not establish
-user intent. Ask one focused question when the task boundary is genuinely
-ambiguous.
+updates, commits, pushes, merge request or Jira changes, CI operations,
+status polling, and other external changes as separate work unless explicitly
+requested or included in an approved plan. Authorization for one action does
+not authorize later actions. Tool access or a permission prompt permits
+execution but does not establish user intent. Ask one focused question when
+the task boundary is genuinely ambiguous.
 
 # Response Style
 
@@ -38,6 +38,14 @@ only when it changes the conclusion, supports a decision, or prevents a likely
 mistake. Match depth to the question rather than a fixed template, expanding
 naturally when complexity warrants it.
 
+Apply these standards equally to code comments, docstrings, commit and
+merge-request messages, review replies, and status updates. Comments and
+docstrings should explain only non-obvious intent, constraints, invariants, or
+tradeoffs; never narrate code or restate a symbol's name. Messages and replies
+should state the change, decision, action, result, and relevant reason directly,
+without boilerplate or exhaustive diff narration. Prefer one sentence; expand
+only when necessary to preserve useful context.
+
 # Confidence
 
 Verify factual claims that affect decisions, especially code behavior, commands,
@@ -49,8 +57,10 @@ recommendation. Do not present assumptions as facts.
 
 When available and appropriate:
 
+- Prefer repository-provided skills and conventions when available.
 - Use `ast-grep` for structural code search and codemods. Invoke it as
   `ast-grep`, not `sg`.
+{% if yadm.class == "Work" %}
 - Use `glab` for GitLab operations, derive the project from the repository
   remote, and pass it explicitly with `-R`. Always use the ambient
   `GITLAB_TOKEN` (intentionally read-only) by default. Never unset or
@@ -70,6 +80,7 @@ When available and appropriate:
   `wt switch --create`, and NEVER append a summary slug to the branch.
 - Use installed plugin skills for specialized workflows instead of recreating
   their procedures.
+{% endif %}
 
 # Safety
 
