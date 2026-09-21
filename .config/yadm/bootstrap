@@ -13,8 +13,36 @@ else
   exit 1
 fi
 
+readonly WORK_SUBMODULES=(".agents/plugins/ex" ".agents/projects/depot")
+
 is_work_machine() {
   "$YADM_BIN" config --get-all local.class 2>/dev/null | grep -qx 'Work'
+}
+
+configure_submodule_active() {
+  # A submodule with a .gitmodules url is treated as active by Git even
+  # before it is ever initialized locally (gitsubmodules(7) ACTIVE
+  # SUBMODULES, rule 3). Without an explicit local override, `checkout`,
+  # `status`, and an initial `clone --recurse-submodules` would try to
+  # populate these private submodules on a Default machine. Force the
+  # local override on every run so switching classes takes effect
+  # immediately.
+  local active=$1 name
+  for name in "${WORK_SUBMODULES[@]}"; do
+    "$YADM_BIN" gitconfig "submodule.$name.active" "$active"
+  done
+}
+
+configure_submodule_fetch_policy() {
+  # A personal ~/.gitconfig with `submodule.recurse = true` makes plain
+  # `fetch`/`pull` recurse into every *populated* submodule unconditionally,
+  # bypassing both `submodule.<name>.active` and any per-submodule
+  # fetchRecurseSubmodules setting. Once these submodules have ever been
+  # checked out (e.g. after switching a machine from Work to Default without
+  # deinitializing), that surfaces as fetch/auth errors against the private
+  # GitLab remotes. An explicit local override restores normal on-demand
+  # behavior regardless of class or global user config.
+  "$YADM_BIN" gitconfig fetch.recurseSubmodules no
 }
 
 copy_if_missing() {
@@ -78,17 +106,21 @@ remove_legacy_opencode_skills_link() {
 "$YADM_BIN" config yadm.alt-copy true
 "$YADM_BIN" alt
 
+configure_submodule_fetch_policy
+
 copy_if_missing "$YADM_DIR/templates/claude-settings.json" "$HOME/.claude/settings.json"
 copy_if_missing "$YADM_DIR/templates/codex-config.toml" "$HOME/.codex/config.toml"
 configure_agent_skills
 
 if is_work_machine; then
+  configure_submodule_active true
   "$YADM_BIN" submodule sync --recursive
   "$YADM_BIN" submodule update --init --recursive
 
   "$SCRIPTS_DIR/register-ex-plugins"
   remove_legacy_opencode_skills_link
 else
+  configure_submodule_active false
   work_artifacts=0
   if [[ -f "$HOME/.config/opencode/plugins/ex.ts" ]] && grep -q 'Generic bootstrap for OpenCode integrations shipped inside the `ex`' "$HOME/.config/opencode/plugins/ex.ts"; then
     rm "$HOME/.config/opencode/plugins/ex.ts"
