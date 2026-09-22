@@ -33,6 +33,19 @@ configure_submodule_active() {
   done
 }
 
+configure_submodule_update_strategy() {
+  # `git submodule init` only seeds submodule.<name>.update from .gitmodules
+  # when the local key is unset; it never overwrites an existing value
+  # (git-submodule(1)). These submodules were already initialized with
+  # Git's implicit `checkout` default, which detaches HEAD on every update.
+  # Force `merge` locally so `submodule update` advances the current
+  # branch instead of detaching it, matching .gitmodules for fresh clones.
+  local name
+  for name in "${WORK_SUBMODULES[@]}"; do
+    "$YADM_BIN" gitconfig "submodule.$name.update" merge
+  done
+}
+
 configure_submodule_fetch_policy() {
   # A personal ~/.gitconfig with `submodule.recurse = true` makes plain
   # `fetch`/`pull` recurse into every *populated* submodule unconditionally,
@@ -114,6 +127,7 @@ configure_agent_skills
 
 if is_work_machine; then
   configure_submodule_active true
+  configure_submodule_update_strategy
   "$YADM_BIN" submodule sync --recursive
   "$YADM_BIN" submodule update --init --recursive
 

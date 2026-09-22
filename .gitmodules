@@ -1,6 +1,8 @@
 [submodule ".agents/plugins/ex"]
 	path = .agents/plugins/ex
 	url = git@gitlab.i.extrahop.com:michaelco/ex-agents.git
+	update = merge
 [submodule ".agents/projects/depot"]
 	path = .agents/projects/depot
 	url = git@gitlab.i.extrahop.com:michaelco/depot-agents.git
+	update = merge
