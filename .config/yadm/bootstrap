@@ -14,6 +14,10 @@ else
 fi
 
 readonly WORK_SUBMODULES=(".agents/plugins/ex" ".agents/projects/depot")
+# Orca's desired configuration is tracked in the private ex submodule, not
+# here: this repository is public, so no internal repo names, paths, or hook
+# scripts may live in it.
+readonly ORCA_CONFIGURE="$HOME/.agents/plugins/ex/contrib/orca/configure.sh"
 
 is_work_machine() {
   "$YADM_BIN" config --get-all local.class 2>/dev/null | grep -qx 'Work'
@@ -116,6 +120,44 @@ remove_legacy_opencode_skills_link() {
   fi
 }
 
+# The Stow-era dotfiles installed these into ~/.config/opencode/skills,
+# either as links into the ex plugin or as copied directories. .gitignore
+# hides that directory from yadm, so removing them from the repository left
+# the old copies on disk, where OpenCode still loads them on every machine.
+# Only entries that match what the old dotfiles shipped are moved aside, and
+# into a backup rather than deleted; anything else there is left alone.
+readonly LEGACY_OPENCODE_SKILL_LINKS=(code-review gitlab jira jira-quarter plan-ticket triage-board)
+readonly LEGACY_OPENCODE_SKILL_DIRS=(reviewers worktree-prune worktree-claude-sync)
+
+retire_legacy_opencode_skill() {
+  local entry=$1 backup_root=$2
+  mkdir -p "$backup_root"
+  mv "$entry" "$backup_root/"
+  printf 'Moved legacy OpenCode skill %s to %s\n' "$entry" "$backup_root"
+}
+
+retire_legacy_opencode_skills() {
+  local skills="$HOME/.config/opencode/skills" name entry
+  local backup_root
+  backup_root="${XDG_STATE_HOME:-$HOME/.local/state}/yadm/legacy-opencode-skills/$(date +%Y%m%d%H%M%S)"
+  [[ -d "$skills" && ! -L "$skills" ]] || return 0
+
+  for name in "${LEGACY_OPENCODE_SKILL_LINKS[@]}"; do
+    entry="$skills/$name"
+    if [[ -L "$entry" ]] && [[ "$(/usr/bin/readlink "$entry")" == */plugins/ex/skills/"$name" ]]; then
+      retire_legacy_opencode_skill "$entry" "$backup_root"
+    fi
+  done
+  for name in "${LEGACY_OPENCODE_SKILL_DIRS[@]}"; do
+    entry="$skills/$name"
+    if [[ -d "$entry" && ! -L "$entry" ]] && grep -qx "name: $name" "$entry/SKILL.md" 2>/dev/null; then
+      retire_legacy_opencode_skill "$entry" "$backup_root"
+    fi
+  done
+
+  rmdir "$skills" 2>/dev/null || true
+}
+
 "$YADM_BIN" config yadm.alt-copy true
 "$YADM_BIN" alt
 
@@ -124,6 +166,7 @@ configure_submodule_fetch_policy
 copy_if_missing "$YADM_DIR/templates/claude-settings.json" "$HOME/.claude/settings.json"
 copy_if_missing "$YADM_DIR/templates/codex-config.toml" "$HOME/.codex/config.toml"
 configure_agent_skills
+retire_legacy_opencode_skills
 
 if is_work_machine; then
   configure_submodule_active true
@@ -133,6 +176,14 @@ if is_work_machine; then
 
   "$SCRIPTS_DIR/register-ex-plugins"
   remove_legacy_opencode_skills_link
+
+  if ! command -v orca >/dev/null 2>&1; then
+    printf '%s\n' "Orca is not reachable from this shell; rerun bootstrap once it is."
+  elif [[ ! -x "$ORCA_CONFIGURE" ]]; then
+    printf '%s\n' "ex submodule is not initialized; skipping Orca configuration."
+  else
+    "$ORCA_CONFIGURE" || printf '%s\n' "Orca configuration incomplete; apply the manual Settings edits listed above."
+  fi
 else
   configure_submodule_active false
   work_artifacts=0

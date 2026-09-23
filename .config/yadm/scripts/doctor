@@ -50,6 +50,18 @@ if is_work_machine; then
   else
     printf '%s\n' 'ok      Work submodules'
   fi
+
+  orca_configure="$HOME/.agents/plugins/ex/contrib/orca/configure.sh"
+  if ! command -v orca >/dev/null 2>&1; then
+    printf '%s\n' 'skip    orca not reachable from this shell'
+  elif [[ ! -x "$orca_configure" ]]; then
+    printf '%s\n' 'skip    orca config (ex submodule not initialized)'
+  elif "$orca_configure" --check >/dev/null 2>&1; then
+    printf '%s\n' 'ok      orca configuration'
+  else
+    printf '%s\n' 'drift   orca configuration (run: yadm bootstrap)'
+    status=1
+  fi
 fi
 
 if command -v herdr >/dev/null 2>&1; then

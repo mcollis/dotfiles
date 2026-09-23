@@ -100,6 +100,29 @@ wt config show
 The default profile generates its portable base. The Work profile composes the
 EX fragment, Work base, and Depot fragment in that order.
 
+## Orca
+
+Orca (the desktop ADE) is configured from the `ex` submodule's tracked project
+manifest, not from yadm directly — this repository is public, so no internal
+repo names, paths, or hook scripts live here. `yadm bootstrap` reconciles a
+running Orca on a Work machine, whether or not Orca itself runs there (its CLI
+bridge reaches a paired Orca app over the same connection this shell already
+uses for everything else).
+
+To run it outside bootstrap, or to preview it:
+
+```sh
+~/.agents/plugins/ex/contrib/orca/configure.sh            # apply, then report the rest
+~/.agents/plugins/ex/contrib/orca/configure.sh --check    # read-only; exits nonzero on drift
+~/.agents/plugins/ex/contrib/orca/configure.sh --dry-run  # report without changing anything
+```
+
+Workspace location is applied automatically. Repository Setup/Archive hooks,
+per-agent Command Overrides, and "Nest Workspaces" have no `orca` CLI setter,
+so the script reports the exact values needed and where to paste them rather
+than pretending an unattended path exists where none does. Edit the manifest
+in the `ex` submodule to add or change a project.
+
 ## Diagnostics
 
 Run the read-only doctor after setup or when troubleshooting:
@@ -109,11 +132,12 @@ Run the read-only doctor after setup or when troubleshooting:
 ```
 
 It reports the selected profile, required commands, Worktrunk freshness, Work
-submodules, Herdr integration status, and OpenCode dependency state.
+submodules, Orca configuration drift, Herdr integration status, and OpenCode
+dependency state.
 
 ## Local State
 
 Application-managed state remains outside yadm, including Claude/Codex sessions,
 Herdr integrations, OpenCode dependencies, generated Worktrunk configuration,
-and Codex system skills. Credentials, SSH keys, AWS configuration, GitLab/Jira
-authentication, and other secrets are never tracked.
+Orca's own settings store, and Codex system skills. Credentials, SSH keys, AWS
+configuration, GitLab/Jira authentication, and other secrets are never tracked.
