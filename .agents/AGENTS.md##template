@@ -73,6 +73,14 @@ When available and appropriate:
   context-checkpoint backend remains exempt and manages its fallback
   internally.
 - Use `jira-cli --plain` for non-interactive Jira operations.
+- For Figma links, use the Figma REST API with the ambient `FIGMA_TOKEN`,
+  passed only as an `X-Figma-Token` header; never print it. Take the file key
+  and `node-id` from the URL (convert `229-53285` to `229:53285`), call
+  `GET https://api.figma.com/v1/files/<key>/nodes?ids=<node>&depth=<n>`, and
+  extract frame names and text with `jq`. Use GET requests only. Don't
+  web-fetch Figma URLs; they require sign-in. If the API fails (for example
+  a 429 rate limit or 403), don't keep retrying; ask the user to export the
+  relevant frames as PDF and attach them or give a path.
 - Use `wt` for worktree management in repositories configured for worktrunk.
   To create a worktree for a Jira ticket, ALWAYS run `wt ex <TICKET-KEY>`
   (e.g. `wt ex EX-56756`). This uses the configured team alias
