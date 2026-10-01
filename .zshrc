@@ -104,10 +104,12 @@ export PATH="$HOME/.opencode/bin:$PATH"
 
 if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
 
+
+
+[ -f ~/.config/portal/env.sh ] && . ~/.config/portal/env.sh
+
 # >>> portal PATH (clip shims) >>>
 # Ensures portal's clipboard shims (~/.local/bin/xclip, wl-paste) win on PATH.
 PATH="$HOME/.local/bin:$(printf '%s' "$PATH" | tr ':' '\n' | grep -vxF "$HOME/.local/bin" | paste -sd: -)"
 export PATH
 # <<< portal PATH (clip shims) <<<
-
-[ -f ~/.config/portal/env.sh ] && . ~/.config/portal/env.sh
