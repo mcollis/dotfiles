@@ -17,7 +17,7 @@
   ],
   "provider": {
     "amazon-bedrock": {
-      "options": { "region": "us-east-2" }
+      "options": { "region": "us-east-1" }
     }
   },
   "permission": {
