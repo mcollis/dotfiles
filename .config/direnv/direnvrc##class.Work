@@ -5,7 +5,8 @@
 #
 # Reads:
 #   TICKET_ID  → tmux window label @wl (falls back to current branch name)
-#   UI_PORT    → tmux right label @wr; also appended to the herdr workspace label
+#   UI_PORT    → tmux right label @wr; also appended to the herdr workspace
+#                label and the Orca workspace display name
 #
 # Exports (for shells, hooks, skills):
 #   WEBPACK_LOG     /tmp/depot-webpack-<slug>.log
@@ -29,8 +30,10 @@ update_labels() {
     export WEBPACK_LOG="/tmp/depot-webpack-${slug}.log"
     export WEBPACK_PIDFILE="/tmp/depot-webpack-${slug}.pid"
 
-    # herdr and tmux are independent; sync herdr before the tmux-only return.
+    # herdr, orca and tmux are independent; sync the workspace-label
+    # integrations before the tmux-only return.
     _herdr_update_labels
+    _orca_update_labels
 
     [ -z "${TMUX:-}" ] && return 0
 
@@ -75,4 +78,27 @@ _herdr_update_labels() {
     elif [ "$cur" != "$base" ]; then
         herdr workspace rename "$HERDR_WORKSPACE_ID" "$base" >/dev/null 2>&1
     fi
+}
+
+# Orca analog of the herdr label: appends ":<UI_PORT>" to the workspace
+# display name (and strips it when UI_PORT is unset). The CLI mechanics live
+# in the depot bundle's lib/orca.sh, projected into each worktree's .agents/,
+# so this is a no-op in any repo that doesn't ship it. Also a no-op outside
+# Orca. direnv runs this synchronously, so the CLI timeout is kept short.
+_orca_update_labels() {
+    [ -n "${ORCA_WORKTREE_ID:-}" ] || return 0
+
+    local root lib
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
+    lib="$root/.agents/lib/orca.sh"
+    [ -f "$lib" ] || return 0
+    # Reload when the helper changes, so edits to it take effect.
+    watch_file "$lib" 2>/dev/null || true
+
+    (
+        # shellcheck source=/dev/null
+        source "$lib"
+        ORCA_CLI_TIMEOUT="${ORCA_LABEL_TIMEOUT:-3}" \
+            orca_refresh_port_label "$root" "${UI_PORT:-}"
+    ) || true
 }
