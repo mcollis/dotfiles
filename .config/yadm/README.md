@@ -41,16 +41,13 @@ Claude and Codex configuration, and generates `~/.config/worktrunk/config.toml`.
 On Work machines it also initializes the EX and Depot submodules and reconciles
 the Claude and Codex EX plugin registrations.
 
-It intentionally does not install system packages, authenticate services, run
-`npm ci`, or install Herdr integrations. Run these when applicable:
+It intentionally does not install system packages, authenticate services, or run
+`npm ci`. Run these when applicable:
 
 ```sh
 ~/.config/yadm/scripts/bootstrap-shell.sh
 npm ci --prefix ~/.config/opencode
 ```
-
-Install Claude, Codex, and OpenCode integrations through the Herdr TUI, then
-verify with `herdr integration status`.
 
 ## Daily Workflow
 
@@ -132,12 +129,11 @@ Run the read-only doctor after setup or when troubleshooting:
 ```
 
 It reports the selected profile, required commands, Worktrunk freshness, Work
-submodules, Orca configuration drift, Herdr integration status, and OpenCode
-dependency state.
+submodules, Orca configuration drift, and OpenCode dependency state.
 
 ## Local State
 
 Application-managed state remains outside yadm, including Claude/Codex sessions,
-Herdr integrations, OpenCode dependencies, generated Worktrunk configuration,
+OpenCode dependencies, generated Worktrunk configuration,
 Orca's own settings store, and Codex system skills. Credentials, SSH keys, AWS
 configuration, GitLab/Jira authentication, and other secrets are never tracked.

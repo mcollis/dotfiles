@@ -23,14 +23,6 @@ plugins=(git zsh-autosuggestions zsh-syntax-highlighting fzf)
 [[ -r "$ZSH/oh-my-zsh.sh" ]] && source "$ZSH/oh-my-zsh.sh"
 
 # --- fzf ---
-# herdr draws its own panes. When the herdr server is started from inside a
-# tmux pane it leaks $TMUX/$TMUX_PANE into every pane it spawns, which makes
-# fzf's __fzfcmd pick fzf-tmux and try to draw its popup in an invisible tmux
-# pane -- Ctrl+R then hangs the herdr pane. Drop the stale vars in herdr panes.
-[[ "$HERDR_ENV" == "1" ]] && unset TMUX TMUX_PANE
-
-# fzf configuration
-export FZF_TMUX_OPTS="-p80%,60%"  # Open in tmux popup (requires tmux 3.2+)
 export FZF_DEFAULT_OPTS="--height 40% --layout=reverse --border --preview-window=right:50%"
 
 # Use fd instead of find for better performance (if available)
@@ -52,7 +44,6 @@ fi
 command -v zoxide >/dev/null 2>&1 && eval "$(zoxide init zsh)"
 
 # --- direnv ---
-export HERDR_REMOTE_KEYBINDINGS=server
 export DIRENV_LOG_FORMAT=""
 command -v direnv > /dev/null && eval "$(direnv hook zsh)"
 
