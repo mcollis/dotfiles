@@ -25,7 +25,25 @@ update_labels() {
     export WEBPACK_LOG="/tmp/depot-webpack-${slug}.log"
     export WEBPACK_PIDFILE="/tmp/depot-webpack-${slug}.pid"
 
+    _depot_compose_project
     _orca_update_labels
+}
+
+# Makes depot's Makefile use the lowercase Compose project name the agent
+# scripts use. Compose rejects uppercase (e.g. an Orca worktree named EX-123),
+# and the Makefile's own derivation preserves case. A plain env var would lose
+# to the Makefile's assignment, but a MAKEFLAGS variable override wins like a
+# command-line one. No-op in repos that don't ship the helper.
+_depot_compose_project() {
+    local root lib
+    root=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
+    lib="$root/.agents/lib/compose-project-name.sh"
+    [ -f "$lib" ] || return 0
+    watch_file "$lib" 2>/dev/null || true
+
+    # shellcheck source=/dev/null
+    source "$lib"
+    export MAKEFLAGS="${MAKEFLAGS:+$MAKEFLAGS }DC_PROJECT=$(compose_project_name "$root")"
 }
 
 # Appends ":<UI_PORT>" to the Orca workspace display name (and strips it when
