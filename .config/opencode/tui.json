@@ -1,6 +1,6 @@
 {
   "$schema": "https://opencode.ai/tui.json",
-  "theme": "system",
+  "theme": "one-dark",
   "plugin": [
     "./plugins/orca-opencode-status-tui/tui.js",
     "opencode-plugin-session-token-summary"
