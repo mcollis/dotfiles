@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Must match provider.amazon-bedrock.options.region in
+# ~/.config/opencode/opencode.json##template.
+readonly DESIRED_AWS_REGION=us-east-1
+
+if ! command -v opencode >/dev/null 2>&1; then
+  exit 0
+fi
+
+# OpenCode v2 substitutes ${AWS_REGION} into Bedrock endpoint URLs from the
+# server environment but signs requests with the region in opencode.json. If
+# the two differ, requests fail with "Credential should be scoped to a valid
+# region". The `service` command exists only in v2; v1 has no such mismatch,
+# so it is skipped.
+version="$(opencode --version 2>/dev/null || true)"
+if [[ ! "$version" =~ ([0-9]+)\.[0-9]+\.[0-9]+ ]] || (( BASH_REMATCH[1] < 2 )); then
+  exit 0
+fi
+
+if ! current="$(opencode service get env AWS_REGION 2>/dev/null)"; then
+  printf '%s\n' 'Could not read the OpenCode service AWS_REGION; skipping.' >&2
+  exit 0
+fi
+
+# Setting a value stops the shared server, so only write when it differs.
+if [[ "$current" != "$DESIRED_AWS_REGION" ]]; then
+  if ! opencode service set env AWS_REGION "$DESIRED_AWS_REGION" >/dev/null; then
+    printf 'Could not set the OpenCode service AWS_REGION to %s; skipping.\n' \
+      "$DESIRED_AWS_REGION" >&2
+    exit 0
+  fi
+  printf 'Set OpenCode service AWS_REGION to %s (was %s); the shared server was stopped.\n' \
+    "$DESIRED_AWS_REGION" "${current:-unset}"
+fi

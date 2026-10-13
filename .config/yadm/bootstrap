@@ -160,6 +160,7 @@ retire_legacy_opencode_skills() {
 
 "$YADM_BIN" config yadm.alt-copy true
 "$YADM_BIN" alt
+"$SCRIPTS_DIR/configure-opencode-service"
 
 configure_submodule_fetch_policy
 
