@@ -1,13 +1,14 @@
-import type { Plugin } from "@opencode-ai/plugin"
+import { Plugin } from "@opencode/plugin"
 import { lintSource } from "@secretlint/core"
 import { rules as presetRules } from "@secretlint/secretlint-rule-preset-recommend"
 import type { SecretLintCoreConfig } from "@secretlint/types"
 
 // Redacts credentials from everything OpenCode sends to the model:
-// - prompts (chat.message), tool output (tool.execute.after), and the full
-//   active-context history resent on every turn (experimental.chat.messages.transform)
-// - the last hook is what covers a raw `!` shell result once it's no longer the
-//   newest message: OpenCode's per-tool hooks only fire for AI-invoked tools,
+// - prompts (session "prompt" hook), tool output (tool "execute.after"), and the
+//   full system prompt and history resent on every request (session "context"
+//   hook, plus "compaction", "generate" and "title" which each run separately)
+// - the context hooks are what cover a raw `!` shell result once it's no longer
+//   the newest message: OpenCode's per-tool hooks only fire for AI-invoked tools,
 //   not user-run shell commands, so history reprocessing is the real backstop.
 //
 // Two independent layers, in order:
@@ -141,27 +142,28 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return proto === Object.prototype || proto === null
 }
 
-// Mutates in place (OpenCode's hook contract only honors in-place edits to
-// args/output objects, not wholesale replacement) and guards against cycles.
-async function redactDeep(value: unknown, secrets: string[], seen = new WeakSet<object>()): Promise<void> {
-  if (!value || typeof value !== "object") return
-  if (seen.has(value as object)) return
-  seen.add(value as object)
+// Returns a redacted copy of strings, arrays and plain objects; anything else
+// (class instances, binary data) passes through untouched. A cyclic structure
+// cannot be copied, so it is withheld rather than forwarded unscanned.
+async function redactValue(value: unknown, secrets: string[], ancestors = new Set<object>()): Promise<unknown> {
+  if (typeof value === "string") return sanitizeText(value, secrets)
+  if (!value || typeof value !== "object") return value
+  const isArray = Array.isArray(value)
+  if (!isArray && !isPlainObject(value)) return value
+  if (ancestors.has(value)) return WITHHELD
 
-  if (Array.isArray(value)) {
-    for (let i = 0; i < value.length; i++) {
-      const item = value[i]
-      if (typeof item === "string") value[i] = await sanitizeText(item, secrets)
-      else if (item && typeof item === "object") await redactDeep(item, secrets, seen)
+  ancestors.add(value)
+  try {
+    if (isArray) {
+      const out: unknown[] = []
+      for (const item of value) out.push(await redactValue(item, secrets, ancestors))
+      return out
     }
-    return
-  }
-
-  if (!isPlainObject(value)) return
-  for (const key of Object.keys(value)) {
-    const item = value[key]
-    if (typeof item === "string") value[key] = await sanitizeText(item, secrets)
-    else if (item && typeof item === "object") await redactDeep(item, secrets, seen)
+    const out: Record<string, unknown> = {}
+    for (const [key, item] of Object.entries(value)) out[key] = await redactValue(item, secrets, ancestors)
+    return out
+  } finally {
+    ancestors.delete(value)
   }
 }
 
@@ -205,24 +207,90 @@ function isBareEnvDump(command: string): boolean {
   return false
 }
 
-export const SecretRedactorPlugin: Plugin = async (_ctx) => {
-  const secrets = captureEnvSecrets()
+// The shapes below are the parts of OpenCode's request types this plugin edits.
+// They are loose on purpose: parts are mutated in place and a field that is
+// absent or of another type is simply skipped.
+type Part = Record<string, any>
+interface RequestEvent {
+  system: Part[]
+  messages: { content: Part[] }[]
+}
 
-  return {
-    "chat.message": async (_input, output) => {
-      const parts = output.parts
-      if (!Array.isArray(parts)) return
-      for (const part of parts) {
-        const p = part as { text?: unknown }
-        if (typeof p.text === "string") p.text = await sanitizeText(p.text, secrets)
+async function redactMessagePart(part: Part, secrets: string[]): Promise<void> {
+  switch (part.type) {
+    case "text":
+    case "reasoning":
+    case "compaction":
+      if (typeof part.text === "string") part.text = await sanitizeText(part.text, secrets)
+      break
+    case "tool-call":
+      part.input = await redactValue(part.input, secrets)
+      break
+    case "tool-result":
+      if (part.result && typeof part.result === "object") {
+        part.result = { ...part.result, value: await redactValue(part.result.value, secrets) }
       }
-    },
+      break
+  }
+}
 
-    "tool.execute.before": async (input, output) => {
-      const args = (output.args ?? {}) as Record<string, unknown>
+async function redactRequest(event: RequestEvent, secrets: string[]): Promise<void> {
+  for (const part of event.system ?? []) {
+    if (typeof part.text === "string") part.text = await sanitizeText(part.text, secrets)
+  }
+  for (const message of event.messages ?? []) {
+    for (const part of message.content ?? []) await redactMessagePart(part, secrets)
+  }
+}
 
-      if (input.tool === "read") {
-        const target = typeof args.filePath === "string" ? args.filePath : undefined
+async function redactToolContent(content: unknown, secrets: string[]): Promise<unknown> {
+  if (typeof content === "string") return sanitizeText(content, secrets)
+  if (!Array.isArray(content)) return content
+  const out: unknown[] = []
+  for (const part of content) {
+    out.push(
+      part && part.type === "text" && typeof part.text === "string"
+        ? { ...part, text: await sanitizeText(part.text, secrets) }
+        : part,
+    )
+  }
+  return out
+}
+
+function stripMentions(items: Part[] | undefined): void {
+  for (const item of items ?? []) delete item.mention
+}
+
+export default Plugin.define({
+  id: "secret-redactor",
+  async setup(ctx) {
+    const secrets = captureEnvSecrets()
+
+    await ctx.session.hook("prompt", async (event) => {
+      const original = event.prompt.text
+      if (typeof original !== "string") return
+      const redacted = await sanitizeText(original, secrets)
+      if (redacted === original) return
+      event.prompt.text = redacted
+      // Redaction changes the text's length, so recorded mention offsets no longer line up.
+      stripMentions(event.prompt.files)
+      stripMentions(event.prompt.agents)
+      stripMentions(event.prompt.skills)
+    })
+
+    // Each kind of model request has its own hook; a redaction that should apply
+    // to every request has to be registered for all of them.
+    const redact = (event: unknown) => redactRequest(event as RequestEvent, secrets)
+    await ctx.session.hook("context", redact)
+    await ctx.session.hook("compaction", redact)
+    await ctx.session.hook("generate", redact)
+    await ctx.session.hook("title", redact)
+
+    await ctx.tool.hook("execute.before", (event) => {
+      const input = (event.input ?? {}) as Record<string, unknown>
+
+      if (event.tool === "read") {
+        const target = [input.path, input.filePath].find((value): value is string => typeof value === "string")
         if (target && looksSensitivePath(target)) {
           throw new Error(
             `secret-redactor: refusing to read '${target}' — looks like a credentials file. Its contents must not enter the model context. If this is safe, rename/copy it outside the sensitive-path patterns first.`,
@@ -230,70 +298,35 @@ export const SecretRedactorPlugin: Plugin = async (_ctx) => {
         }
       }
 
-      if (input.tool === "bash") {
-        const command = typeof args.command === "string" ? args.command : ""
+      if (event.tool === "shell") {
+        const command = typeof input.command === "string" ? input.command : ""
         if (command && isBareEnvDump(command)) {
           throw new Error(
             "secret-redactor: bare 'env'/'printenv' dumps the entire environment, including credentials. Specify a variable name, e.g. `printenv EDITOR`.",
           )
         }
       }
-    },
+    })
 
-    "tool.execute.after": async (_input, output) => {
-      if (typeof output.output === "string") output.output = await sanitizeText(output.output, secrets)
-      if (typeof output.title === "string") output.title = await sanitizeText(output.title, secrets)
-      if (output.metadata && typeof output.metadata === "object") await redactDeep(output.metadata, secrets)
-    },
-
-    "experimental.chat.system.transform": async (_input, output) => {
-      if (!Array.isArray(output.system)) return
-      for (let i = 0; i < output.system.length; i++) {
-        const item = output.system[i]
-        if (typeof item === "string") output.system[i] = await sanitizeText(item, secrets)
-      }
-    },
-
-    "experimental.chat.messages.transform": async (_input, output) => {
-      const messages = output.messages
-      if (!Array.isArray(messages)) return
-      for (const message of messages) {
-        const parts = Array.isArray(message?.parts) ? message.parts : []
-        for (const part of parts) {
-          if (!part) continue
-
-          if (part.type === "text" || part.type === "reasoning") {
-            const p = part as { text?: unknown }
-            if (typeof p.text === "string") p.text = await sanitizeText(p.text, secrets)
-            continue
-          }
-
-          if (part.type !== "tool") continue
-          const state = (part as { state?: unknown }).state as Record<string, unknown> | undefined
-          if (!state || typeof state !== "object") continue
-
-          if (state.input && typeof state.input === "object") await redactDeep(state.input, secrets)
-
-          switch (state.status) {
-            case "completed":
-              if (typeof state.output === "string") state.output = await sanitizeText(state.output, secrets)
-              if (typeof state.title === "string") state.title = await sanitizeText(state.title, secrets)
-              if (state.metadata && typeof state.metadata === "object") await redactDeep(state.metadata, secrets)
-              break
-            case "error":
-              if (typeof state.error === "string") state.error = await sanitizeText(state.error, secrets)
-              if (state.metadata && typeof state.metadata === "object") await redactDeep(state.metadata, secrets)
-              break
-            case "running":
-              if (typeof state.title === "string") state.title = await sanitizeText(state.title, secrets)
-              if (state.metadata && typeof state.metadata === "object") await redactDeep(state.metadata, secrets)
-              break
-            case "pending":
-              if (typeof state.raw === "string") state.raw = await sanitizeText(state.raw, secrets)
-              break
-          }
+    await ctx.tool.hook("execute.after", async (event) => {
+      if (event.status === "completed") {
+        const { content, output, metadata } = event.result
+        event.result = {
+          ...event.result,
+          ...(content !== undefined && { content: (await redactToolContent(content, secrets)) as typeof content }),
+          ...(output !== undefined && { output: await redactValue(output, secrets) }),
+          ...(metadata !== undefined && { metadata: (await redactValue(metadata, secrets)) as typeof metadata }),
         }
+        return
       }
-    },
-  }
-}
+      // A failure's message is also resent as a tool result, which the context
+      // hooks above redact, so this is a best-effort first pass.
+      const error = event.error as { message: string; metadata?: unknown }
+      try {
+        error.message = await sanitizeText(error.message, secrets)
+      } catch {
+        // Read-only error object; the context hooks still cover it.
+      }
+    })
+  },
+})

@@ -4,6 +4,7 @@
   },
   "dependencies": {
     "@opencode-ai/plugin": "1.17.7",
+    "@opencode/plugin": "2.0.28",
     "@secretlint/core": "13.0.4",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.4"
   }
