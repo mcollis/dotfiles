@@ -20,6 +20,8 @@ const CHECK_TIMEOUT_MS = 30_000
 const LOGIN_TIMEOUT_MS = 5 * 60_000
 
 let ensured: Promise<void> | undefined
+// Lapsed SSO sessions are noticed by re-checking now and then, not only at load.
+const RECHECK_MS = 30 * 60_000
 
 function dbg(msg: string) {
   console.error(`[aws-sso-auth] ${msg}`)
@@ -47,10 +49,21 @@ async function ensureSession() {
   }
 }
 
+function ensureOnce() {
+  ensured ??= ensureSession().finally(() => {
+    ensured = undefined
+  })
+  return ensured
+}
+
 export default Plugin.define({
   id: "aws-sso-auth",
-  async setup() {
-    ensured ??= ensureSession()
-    await ensured
+  setup() {
+    // Login can wait minutes on a browser, so it must not hold plugin
+    // activation (and with it every other plugin's readiness) hostage.
+    void ensureOnce()
+    const timer = setInterval(() => void ensureOnce(), RECHECK_MS)
+    timer.unref?.()
+    return () => clearInterval(timer)
   },
 })

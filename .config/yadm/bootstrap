@@ -161,6 +161,7 @@ retire_legacy_opencode_skills() {
 "$YADM_BIN" config yadm.alt-copy true
 "$YADM_BIN" alt
 "$SCRIPTS_DIR/configure-opencode-service"
+"$SCRIPTS_DIR/configure-opencode-cli"
 
 configure_submodule_fetch_policy
 
@@ -190,6 +191,11 @@ else
   work_artifacts=0
   if [[ -f "$HOME/.config/opencode/plugins/ex.ts" ]] && grep -q 'Generic bootstrap for OpenCode integrations shipped inside the `ex`' "$HOME/.config/opencode/plugins/ex.ts"; then
     rm "$HOME/.config/opencode/plugins/ex.ts"
+    work_artifacts=1
+  fi
+  if [[ -f "$HOME/.config/opencode/plugins/ex-notices/tui.ts" ]] && grep -q 'Terminal companion to the `ex` server plugin' "$HOME/.config/opencode/plugins/ex-notices/tui.ts"; then
+    rm "$HOME/.config/opencode/plugins/ex-notices/tui.ts"
+    rmdir "$HOME/.config/opencode/plugins/ex-notices" 2>/dev/null || true
     work_artifacts=1
   fi
   if [[ -L "$HOME/.config/opencode/skills" ]] && [[ "$(/usr/bin/readlink "$HOME/.config/opencode/skills")" == ../../.agents/plugins/ex/skills ]]; then

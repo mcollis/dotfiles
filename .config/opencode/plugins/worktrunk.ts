@@ -24,6 +24,10 @@ export default Plugin.define({
     // Execution events carry no location, and session.deleted arrives after the
     // session can no longer be looked up, so remember where each session lives.
     const sessionDirectories = new Map<string, string>()
+    // Sessions in this worktree that are executing right now. The marker is a
+    // single value per branch, so it can only say "waiting" once none are.
+    const running = new Set<string>()
+    const settle = () => wt(directory, ["set", running.size > 0 ? WORKING : WAITING])
 
     async function directoryOf(sessionID: string): Promise<string | undefined> {
       const known = sessionDirectories.get(sessionID)
@@ -44,20 +48,36 @@ export default Plugin.define({
           // plugin, so only react to this location's sessions.
           switch (event.type) {
             case "session.execution.started":
-              if ((await directoryOf(event.data.sessionID)) === directory) await wt(directory, ["set", WORKING])
+              if ((await directoryOf(event.data.sessionID)) === directory) {
+                running.add(event.data.sessionID)
+                await settle()
+              }
               break
             case "session.execution.succeeded":
             case "session.execution.failed":
             case "session.execution.interrupted":
-              if ((await directoryOf(event.data.sessionID)) === directory) await wt(directory, ["set", WAITING])
+              if ((await directoryOf(event.data.sessionID)) === directory) {
+                running.delete(event.data.sessionID)
+                await settle()
+              }
               break
-            case "session.moved":
+            case "session.moved": {
+              // It may have left this worktree: stop counting it, and let the
+              // marker reflect whoever is still here.
+              const owner = sessionDirectories.get(event.data.sessionID)
               sessionDirectories.delete(event.data.sessionID)
+              if (owner === directory && running.delete(event.data.sessionID)) await settle()
               break
+            }
             case "session.deleted": {
               const owner = sessionDirectories.get(event.data.sessionID)
               sessionDirectories.delete(event.data.sessionID)
-              if (owner === directory) await wt(directory, ["clear"])
+              if (owner !== directory) break
+              running.delete(event.data.sessionID)
+              // Other sessions may still be working; only an empty worktree is cleared.
+              if (running.size > 0) await settle()
+              else if (![...sessionDirectories.values()].includes(directory)) await wt(directory, ["clear"])
+              else await settle()
               break
             }
           }

@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Keeps the `ex` terminal companion registered in the OpenCode CLI settings.
+#
+# cli.json is owned by the OpenCode terminal client (its settings dialog
+# rewrites it), so it is deliberately not tracked or templated here. Only this
+# one entry is managed: present on Work machines, where bootstrap generates the
+# plugin from plugins/ex-notices/tui.ts##class.Work, and removed everywhere else so a machine
+# without the file never points at a missing plugin.
+
+readonly CLI_JSON="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/cli.json"
+readonly ENTRY='./plugins/ex-notices/tui.ts'
+
+if command -v yadm >/dev/null 2>&1; then
+  readonly YADM_BIN="$(command -v yadm)"
+elif [[ -x /usr/bin/yadm ]]; then
+  readonly YADM_BIN=/usr/bin/yadm
+else
+  printf '%s\n' 'yadm is required to configure the OpenCode CLI.' >&2
+  exit 1
+fi
+
+if "$YADM_BIN" config --get-all local.class 2>/dev/null | grep -qx 'Work'; then
+  want=present
+else
+  want=absent
+fi
+
+# V2 migrates tui.json into cli.json on its first run; do not pre-empt that
+# migration by creating a file of our own.
+[[ -f "$CLI_JSON" ]] || exit 0
+
+python3 - "$CLI_JSON" "$ENTRY" "$want" <<'PY'
+import json, os, sys, tempfile
+
+path, entry, want = sys.argv[1:4]
+with open(path) as handle:
+    data = json.load(handle)
+
+plugins = list(data.get("plugins", []))
+has = entry in plugins
+if want == "present" and not has:
+    plugins.append(entry)
+elif want == "absent" and has:
+    plugins = [item for item in plugins if item != entry]
+else:
+    raise SystemExit(0)
+
+data["plugins"] = plugins
+fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+with os.fdopen(fd, "w") as handle:
+    json.dump(data, handle, indent=2)
+    handle.write("\n")
+os.chmod(tmp, os.stat(path).st_mode & 0o777)
+os.replace(tmp, path)
+print(f"{'Added' if want == 'present' else 'Removed'} {entry} in {path}")
+PY

@@ -176,3 +176,25 @@ test("tool execute.after redacts a failure message", async () => {
   await hook("tool:execute.after")(event)
   assert.ok(!event.error.message.includes(FAKE_GITHUB_PAT))
 })
+
+test("redactText scrubs a secret for callers outside any session hook", async () => {
+  const { redactText } = await import("../plugins/secret-redactor.ts")
+  const out = await redactText(`please use ${FAKE_GITHUB_PAT} now`)
+  assert.ok(!out.includes(FAKE_GITHUB_PAT))
+  assert.ok(out.includes("[REDACTED]"))
+})
+
+test("a later load does not reuse a result cached before a value became a known secret", async () => {
+  const text = "value: lateSecretValue7c1d"
+  const first = await loadPlugin()
+  const before: any = completed({ content: text })
+  await first.hook("tool:execute.after")(before)
+  assert.equal(before.result.content, text, "not a secret yet, so unchanged")
+
+  process.env.SECRET_REDACTOR_LATE_TOKEN = "lateSecretValue7c1d"
+  const second = await loadPlugin()
+  delete process.env.SECRET_REDACTOR_LATE_TOKEN
+  const after: any = completed({ content: text })
+  await second.hook("tool:execute.after")(after)
+  assert.ok(!after.result.content.includes("lateSecretValue7c1d"))
+})

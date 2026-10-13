@@ -1,0 +1,31 @@
+import { Plugin } from "@opencode/plugin/tui"
+
+// Terminal companion to the `ex` server plugin (plugins/ex.ts). The server
+// side records every checkpoint outcome as a queued synthetic message tagged
+// with `exCheckpointNotice` metadata (see
+// ~/.agents/plugins/ex/integrations/opencode/index.ts); this turns each one
+// into a toast the moment it is admitted, instead of waiting for the next
+// model turn to surface it. The server plugin works without it.
+const NOTICE_KEY = "exCheckpointNotice"
+
+export default Plugin.define({
+  id: "ex.notices",
+  setup(context) {
+    return context.data.on("session.inbox.enqueued", (event) => {
+      const item = event.data.item
+      if (item.type !== "synthetic") return
+      const metadata = item.payload.metadata as Record<string, unknown> | undefined
+      if (!metadata?.[NOTICE_KEY]) return
+      // The event stream is server-wide; only toast for this terminal's own
+      // location, not for another terminal's worktree.
+      const here = context.location ?? context.data.location.default()
+      if (event.location?.directory && here?.directory && event.location.directory !== here.directory) return
+      context.ui.toast.show({
+        title: "Checkpoint",
+        message: item.payload.text,
+        variant: metadata.exCheckpointLevel === "warn" ? "warning" : "success",
+        duration: 4000,
+      })
+    })
+  },
+})

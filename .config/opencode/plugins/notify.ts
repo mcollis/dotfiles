@@ -11,7 +11,8 @@ export default Plugin.define({
       if (event.tool !== "shell") return
       const input = event.input as { command?: unknown } | undefined
       const cmd = String(input?.command ?? "")
-      if (/\bgit\b.*\bcommit\b/.test(cmd) && cmd.includes("Co-Authored-By")) {
+      // [\s\S] so a multi-line command (heredoc message) is still inspected.
+      if (/\bgit\b[\s\S]*\bcommit\b/.test(cmd) && /co-authored-by/i.test(cmd)) {
         throw new Error(
           "Commit message contains a Co-Authored-By footer. " +
             "Use the commit-message skill to draft the message instead.",

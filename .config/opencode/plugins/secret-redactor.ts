@@ -112,14 +112,18 @@ async function scanWithSecretlint(text: string): Promise<string> {
   return out
 }
 
-// Memoized on the exact input string: given a fixed env-secret set (captured
-// once per process), the mapping is pure. This matters because the history
-// transform hook rescans the entire active context on every turn.
-const sanitizeCache = new Map<string, string>()
+// Memoized on the exact input string *per captured secret set*: the mapping is
+// only pure for a fixed set, and each plugin load captures its own. Sharing one
+// cache across sets would let a later load reuse a result computed before a
+// value became a known secret. This matters because the history transform hook
+// rescans the entire active context on every turn.
+const sanitizeCaches = new WeakMap<string[], Map<string, string>>()
 const MAX_CACHE_ENTRIES = 5000
 
 async function sanitizeText(text: string, secrets: string[]): Promise<string> {
   if (!text) return text
+  let sanitizeCache = sanitizeCaches.get(secrets)
+  if (!sanitizeCache) sanitizeCaches.set(secrets, (sanitizeCache = new Map()))
   const cached = sanitizeCache.get(text)
   if (cached !== undefined) return cached
 
@@ -259,6 +263,15 @@ async function redactToolContent(content: unknown, secrets: string[]): Promise<u
 
 function stripMentions(items: Part[] | undefined): void {
   for (const item of items ?? []) delete item.mention
+}
+
+// For callers that send text to a model outside any session hook (the `ex`
+// checkpoint renderer uses ctx.generate.text, which no session hook sees).
+// Uses the environment secrets captured on first use.
+let sharedSecrets: string[] | undefined
+export function redactText(text: string): Promise<string> {
+  sharedSecrets ??= captureEnvSecrets()
+  return sanitizeText(text, sharedSecrets)
 }
 
 export default Plugin.define({
