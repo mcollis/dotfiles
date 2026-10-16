@@ -114,11 +114,15 @@ To run it outside bootstrap, or to preview it:
 ~/.agents/plugins/ex/contrib/orca/configure.sh --dry-run  # report without changing anything
 ```
 
-Workspace location is applied automatically. Repository Setup/Archive hooks,
-per-agent Command Overrides, and "Nest Workspaces" have no `orca` CLI setter,
-so the script reports the exact values needed and where to paste them rather
-than pretending an unattended path exists where none does. Edit the manifest
-in the `ex` submodule to add or change a project.
+Workspace location is applied automatically. A project that declares a
+`hook_yaml` in the manifest (Depot) also gets its `orca.yaml` projected into
+its checkout and `.worktreeinclude`, with both files git-excluded; the only
+manual step for it is choosing **orca.yaml only** as the command source in
+Settings -> Repository -> Hooks. For other projects, Repository Setup/Archive
+hooks, per-agent Command Overrides, and "Nest Workspaces" have no `orca` CLI
+setter, so the script reports the exact values needed and where to paste them
+rather than pretending an unattended path exists where none does. Edit the
+manifest in the `ex` submodule to add or change a project.
 
 ## Diagnostics
 
