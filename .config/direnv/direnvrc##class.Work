@@ -4,27 +4,9 @@
 # (after exports are defined, so UI_PORT/TICKET_ID are visible).
 #
 # Reads:
-#   TICKET_ID  → slug for the webpack log/pidfile (falls back to branch name)
 #   UI_PORT    → appended to the Orca workspace display name
-#
-# Exports (for shells, hooks, skills):
-#   WEBPACK_LOG     /tmp/depot-webpack-<slug>.log
-#   WEBPACK_PIDFILE /tmp/depot-webpack-<slug>.pid
 
 update_labels() {
-    local slug="${TICKET_ID:-}"
-    if [ -z "$slug" ]; then
-        local br
-        br=$(git rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/' '-')
-        if [ -n "$br" ] && [ "$br" != "HEAD" ]; then
-            slug="$br"
-        else
-            slug=$(basename "$PWD")
-        fi
-    fi
-    export WEBPACK_LOG="/tmp/depot-webpack-${slug}.log"
-    export WEBPACK_PIDFILE="/tmp/depot-webpack-${slug}.pid"
-
     _depot_compose_project
     _orca_update_labels
 }

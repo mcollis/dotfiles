@@ -72,18 +72,22 @@ kill-vscode-watchers() {
     done
 }
 
-# Tail the webpack-dev-server log. Path comes from $WEBPACK_LOG (set by direnv).
+# Tail this worktree's webpack-dev-server log. The path comes from the repo's
+# own resolver so it always matches /start-webpack and /webpack-status.
 wptail() {
-    if [ -z "${WEBPACK_LOG:-}" ]; then
-        echo "wptail: \$WEBPACK_LOG not set — cd into a worktree with .envrc loaded" >&2
+    local root log
+    root=$(git rev-parse --show-toplevel 2>/dev/null)
+    if [ -z "$root" ] || [ ! -f "$root/.agents/hooks/lib.sh" ]; then
+        echo "wptail: run from inside a worktree with .agents/hooks/lib.sh" >&2
         return 1
     fi
-    if [ ! -f "$WEBPACK_LOG" ]; then
-        echo "wptail: no log at $WEBPACK_LOG (start webpack with /start-webpack in Claude)" >&2
+    log=$(cd "$root" && bash -c 'source .agents/hooks/lib.sh && webpack_log_path') || return 1
+    if [ ! -f "$log" ]; then
+        echo "wptail: no log at $log (start webpack with /start-webpack)" >&2
         return 1
     fi
-    echo "Tailing $WEBPACK_LOG"
-    tail -F "$WEBPACK_LOG"
+    echo "Tailing $log"
+    tail -F "$log"
 }
 
 # --- Powerlevel10k ---
