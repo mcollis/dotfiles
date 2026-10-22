@@ -388,6 +388,11 @@ export function redactText(text: string): Promise<string> {
 export default Plugin.define({
   id: "secret-redactor",
   async setup(ctx) {
+    // Disabled on request: no hooks are registered and the scan process is not started.
+    // Set to false to re-enable.
+    const DISABLED = true
+    if (DISABLED) return
+
     const secrets = captureEnvSecrets()
     const scanner = sharedScanService()
     scanner.retain()
