@@ -15,6 +15,9 @@ const { Cause, Context, Effect, Exit, Schema } = await import("effect")
 const { default: plugin } = await import("../plugins/plan-to-build.ts")
 
 const APPROVE = "Switch to Build and continue"
+const PLAN_MODEL = { providerID: "planning-provider", id: "planning-model", variant: "deep" }
+const DEFAULT_MODEL = { providerID: "default-provider", id: "default-model" }
+const BUILD_MODEL = { providerID: "execution-provider", id: "execution-model", variant: "fast" }
 const REMINDER = `<system-reminder>
 You are in Plan mode. Discuss the plan with the user directly in the conversation. Do not create or update plan files unless the user explicitly asks you to; when they do, write them only in:
 /home/u/.opencode/plan
@@ -27,19 +30,26 @@ You remain in Plan mode until the user switches agents. If the user asks you to 
 interface Options {
   session?: Record<string, unknown>
   build?: Record<string, unknown> | null
+  defaultModel?: Record<string, unknown> | null
+  models?: Record<string, unknown>[]
   questionTool?: boolean
-  switchAgent?: () => Promise<void>
+  switchAgent?: (input: any) => Promise<void | false>
+  switchModel?: (input: any) => Promise<void | false>
+  readback?: (model: any) => any
   nativeQuestion?: (input: any, context: any) => EffectType.Effect<any, any, any>
 }
 
 let nextCall = 0
 
 async function harness(options: Options = {}) {
-  const calls = { switchAgent: [] as any[], forbidden: [] as string[] }
+  const calls = {
+    switchAgent: [] as any[], switchModel: [] as any[], operations: [] as string[],
+    agentGet: [] as any[], modelDefault: [] as any[], modelList: [] as any[], forbidden: [] as string[],
+  }
   const hooks: Record<string, (event: any) => any> = {}
   const toolHooks: Record<string, (event: any) => any> = {}
   let tool: any
-  let session: any = { id: "ses_1", agent: "plan", location: { directory: "/work" }, ...options.session }
+  let session: any = { id: "ses_1", agent: "plan", model: PLAN_MODEL, location: { directory: "/work" }, ...options.session }
   const forbid = (name: string) => () => Effect.sync(() => {
     calls.forbidden.push(name)
   })
@@ -66,25 +76,51 @@ async function harness(options: Options = {}) {
       }),
     },
     agent: {
-      get: () => options.build === null
-        ? Effect.fail(new Error("not found"))
-        : Effect.succeed({ location: {}, data: { id: "build", mode: "primary", ...options.build } }),
+      get: (input: any) => Effect.gen(function* () {
+        calls.agentGet.push(input)
+        if (options.build === null) return yield* Effect.fail(new Error("not found"))
+        return { location: {}, data: { id: "build", mode: "primary", ...options.build } }
+      }),
+    },
+    model: {
+      default: (input: any) => Effect.sync(() => {
+        calls.modelDefault.push(input)
+        return { location: {}, data: options.defaultModel === null ? undefined : options.defaultModel ?? DEFAULT_MODEL }
+      }),
+      list: (input: any) => Effect.sync(() => {
+        calls.modelList.push(input)
+        return { location: {}, data: options.models ?? [DEFAULT_MODEL, BUILD_MODEL].map((model) => ({
+          ...model, enabled: true, variants: "variant" in model ? [{ id: model.variant }] : [],
+        })) }
+      }),
     },
     session: {
       hook: (name: string, callback: any) => Effect.sync(() => {
         hooks[name] = (event) => Effect.runSync(callback(event))
         return { dispose: Effect.void }
       }),
-      get: () => Effect.sync(() => session),
+      get: () => Effect.sync(() => {
+        calls.operations.push("get")
+        return { ...session }
+      }),
       switchAgent: (input: any) => Effect.gen(function* () {
-        if (options.switchAgent) yield* Effect.tryPromise({ try: options.switchAgent, catch: (error) => error })
+        calls.operations.push(`agent:${input.agent}`)
         calls.switchAgent.push(input)
+        const result = options.switchAgent
+          ? yield* Effect.tryPromise({ try: () => options.switchAgent!(input), catch: (error) => error }) : undefined
+        if (result !== false) session.agent = input.agent
+      }),
+      switchModel: (input: any) => Effect.gen(function* () {
+        calls.operations.push(`model:${input.model.id}`)
+        calls.switchModel.push(input)
+        const result = options.switchModel
+          ? yield* Effect.tryPromise({ try: () => options.switchModel!(input), catch: (error) => error }) : undefined
+        if (result !== false) session.model = options.readback ? options.readback(input.model) : input.model
       }),
       prompt: forbid("prompt"),
       synthetic: forbid("synthetic"),
       interrupt: forbid("interrupt"),
       wait: forbid("wait"),
-      switchModel: forbid("switchModel"),
       update: forbid("update"),
     },
     permission: { reply: forbid("permission.reply") },
@@ -103,7 +139,10 @@ async function harness(options: Options = {}) {
     return { event, run: () => toolHooks["execute.before"](event) }
   }
   const after = (event: any, output: unknown, status = "completed") => {
-    const result: any = { tool: event.tool, id: event.id, sessionID: event.sessionID, status, input: event.input }
+    const result: any = {
+      tool: event.tool, id: event.id, sessionID: event.sessionID, agent: event.agent,
+      messageID: event.messageID, status, input: event.input,
+    }
     if (status === "completed") result.result = { output, content: "native question output" }
     else result.error = { message: "boom" }
     return toolHooks["execute.after"](result).then(() => result)
@@ -127,6 +166,10 @@ async function harness(options: Options = {}) {
       progress: () => Effect.void,
     }),
     setSession: (next: any) => (session = { ...session, ...next }),
+    session: () => session,
+    context: (model = session.model, agent = session.agent) => hooks.context({
+      sessionID: "ses_1", model, agent, tools: {}, system: [], messages: [],
+    }),
   }
 }
 
@@ -158,11 +201,210 @@ test("approval switches to Build exactly once with scoped continuation instructi
   const { flow, calls } = await harness()
   const { result } = await flow({ answers: [[APPROVE]] }, "update the configuration")
   assert.deepEqual(calls.switchAgent, [{ sessionID: "ses_1", agent: "build" }])
+  assert.deepEqual(calls.switchModel, [{ sessionID: "ses_1", model: DEFAULT_MODEL }])
+  assert.deepEqual(calls.operations, ["get", "get", "model:default-model", "get", "agent:build", "get"])
   assert.match(result.result.content, /^Switched to Build\./)
+  assert.match(result.result.content, /Model: default-provider\/default-model\./)
+  assert.match(result.result.content, /next verified Build request/)
   assert.match(result.result.content, /update the configuration/)
   assert.match(result.result.content, /only the requested scope/)
   assert.deepEqual(result.result.output, { answers: [[APPROVE]] })
   assert.deepEqual(calls.forbidden, [])
+})
+
+test("the runtime Build preference wins over the global default and retains its variant", async () => {
+  for (const model of [BUILD_MODEL, { providerID: BUILD_MODEL.providerID, id: BUILD_MODEL.id }]) {
+    const h = await harness({ build: { model } })
+    const { event, result } = await h.flow()
+    assert.deepEqual(h.calls.switchModel, [{ sessionID: "ses_1", model }])
+    assert.deepEqual(h.calls.modelDefault, [])
+    assert.ok(h.calls.agentGet.every((input) => input.location.directory === "/work"))
+    assert.deepEqual(h.calls.modelList, [{ location: { directory: "/work" } }])
+    assert.match(result.result.content, /execution-provider\/execution-model/)
+    assert.equal(result.result.content.includes("#fast"), "variant" in model)
+    await h.after(event, { answers: [[APPROVE]] })
+    assert.equal(h.calls.switchAgent.length, 1)
+    assert.equal(h.calls.switchModel.length, 1)
+  }
+})
+
+test("global fallback uses the runtime catalog default, not the selected Plan model or variant", async () => {
+  const h = await harness()
+  await h.flow()
+  assert.deepEqual(h.calls.modelDefault, [{ location: { directory: "/work" } }])
+  assert.deepEqual(h.session().model, DEFAULT_MODEL)
+  assert.equal(h.session().model.variant, undefined)
+})
+
+test("missing or unavailable runtime models fail visibly without changing selections", async () => {
+  for (const options of [
+    { defaultModel: null },
+    { models: [] },
+    { build: { model: { ...BUILD_MODEL, variant: "unknown" } } },
+    { models: [{ ...DEFAULT_MODEL, enabled: false, variants: [] }] },
+    { session: { model: undefined } },
+  ] as Options[]) {
+    const h = await harness(options)
+    const { result } = await h.flow()
+    assert.match(result.result.content, /^Switch to Build failed:/)
+    assert.match(result.result.content, /The switch was not applied/)
+    assert.deepEqual(h.calls.switchModel, [])
+    assert.deepEqual(h.calls.switchAgent, [])
+  }
+})
+
+test("the effective Plan request model supplies restoration when no selection is stored", async () => {
+  const h = await harness({
+    session: { model: undefined },
+    switchAgent: async (input) => {
+      if (input.agent === "build") throw new Error("agent switch failed")
+    },
+  })
+  h.context(PLAN_MODEL, "plan")
+  const { result } = await h.flow()
+  assert.match(result.result.content, /Restored Plan and the previous model/)
+  assert.deepEqual(h.session().model, PLAN_MODEL)
+})
+
+test("model switch failure and model or agent readback mismatches restore Plan", async () => {
+  for (const options of [
+    { switchModel: async (input: any) => {
+      if (input.model.id === DEFAULT_MODEL.id) throw new Error("model switch failed")
+    } },
+    { switchModel: async (input: any) => input.model.id === DEFAULT_MODEL.id ? false as const : undefined },
+    { switchAgent: async (input: any) => input.agent === "build" ? false as const : undefined },
+  ]) {
+    const h = await harness(options)
+    const { result } = await h.flow()
+    assert.match(result.result.content, /^Switch to Build failed:/)
+    assert.match(result.result.content, /Restored Plan and the previous model/)
+    assert.equal(h.session().agent, "plan")
+    assert.deepEqual(h.session().model, PLAN_MODEL)
+    h.context()
+  }
+})
+
+test("failed or unverified restoration blocks execution until the previous selection is restored", async () => {
+  for (const failure of ["throw", "readback"]) {
+    const h = await harness({
+      switchAgent: async (input) => {
+        if (input.agent === "build") throw new Error("agent switch failed")
+      },
+      switchModel: async (input) => {
+        if (input.model.id !== PLAN_MODEL.id) return
+        if (failure === "throw") throw new Error("restoration failed")
+        return false
+      },
+    })
+    const { result } = await h.flow()
+    assert.match(result.result.content, /Restoration failed:/)
+    assert.match(result.result.content, /Execution is blocked/)
+    assert.ok(!result.result.content.includes("Restored Plan"))
+    assert.throws(() => h.context(), /Execution blocked before model dispatch/)
+    await assert.rejects(h.before("x", { tool: "shell", messageID: "msg_next" }).run(), /verified new model request/)
+    h.setSession({ agent: "plan", model: PLAN_MODEL })
+    h.context()
+    await h.before("x", { tool: "read", messageID: "msg_next" }).run()
+  }
+})
+
+test("the old Plan request cannot execute tools after approval, even after Build dispatch is verified", async () => {
+  const h = await harness()
+  await h.flow()
+  for (const [model, agent] of [[PLAN_MODEL, "build"], [DEFAULT_MODEL, "plan"]] as const)
+    assert.throws(() => h.context(model, agent), /selection mismatch/)
+  await assert.rejects(h.before("x", { tool: "patch" }).run(), /verified new model request/)
+  h.context()
+  await assert.rejects(h.before("x", { tool: "patch" }).run(), /verified new model request/)
+  await h.before("x", { tool: "patch", agent: "build", messageID: "msg_build" }).run()
+})
+
+const withDefaultVariant = (model: any) => ({ ...model, variant: model.variant ?? "default" })
+const withoutDefaultVariant = (model: any) => {
+  const { variant, ...rest } = model
+  return variant === "default" ? rest : model
+}
+
+test("an omitted variant and \"default\" are equivalent in readback and the next Build request", async () => {
+  for (const [model, readback] of [
+    [DEFAULT_MODEL, withDefaultVariant],
+    [{ ...DEFAULT_MODEL, variant: "default" }, withoutDefaultVariant],
+  ] as const) {
+    const h = await harness({
+      build: { model },
+      models: [{ ...DEFAULT_MODEL, enabled: true, variants: [{ id: "default" }] }],
+      readback,
+    })
+    const { result } = await h.flow()
+    assert.match(result.result.content, /^Switched to Build\./)
+    assert.deepEqual(h.calls.switchAgent, [{ sessionID: "ses_1", agent: "build" }])
+    assert.throws(() => h.context(PLAN_MODEL, "plan"), /selection mismatch/)
+  }
+  for (const next of [DEFAULT_MODEL, { ...DEFAULT_MODEL, variant: "default" }]) {
+    const h = await harness({ readback: withDefaultVariant })
+    await h.flow()
+    h.context(next, "build")
+    await h.before("x", { tool: "patch", agent: "build", messageID: "msg_build" }).run()
+  }
+})
+
+test("rollback verifies Plan when the runtime reports the default variant explicitly", async () => {
+  const plan = { providerID: PLAN_MODEL.providerID, id: PLAN_MODEL.id }
+  const h = await harness({
+    session: { model: plan },
+    readback: withDefaultVariant,
+    switchAgent: async (input) => {
+      if (input.agent === "build") throw new Error("agent switch failed")
+    },
+  })
+  const { result } = await h.flow()
+  assert.match(result.result.content, /Restored Plan and the previous model/)
+  assert.equal(h.session().agent, "plan")
+  h.context(withDefaultVariant(plan), "plan")
+  await h.before("x", { tool: "read", messageID: "msg_next" }).run()
+})
+
+test("only the default variant is equivalent to an omitted one", async () => {
+  const h = await harness({ readback: (model) => ({ ...model, variant: "other" }) })
+  const { result } = await h.flow()
+  assert.match(result.result.content, /^Switch to Build failed:/)
+  assert.ok(!h.calls.switchAgent.some((input) => input.agent === "build"))
+
+  const switched = await harness()
+  await switched.flow()
+  for (const model of [
+    { ...DEFAULT_MODEL, variant: "fast" },
+    { ...DEFAULT_MODEL, id: "other-model" },
+    { ...DEFAULT_MODEL, providerID: "other-provider" },
+  ]) assert.throws(() => switched.context(model, "build"), /selection mismatch/)
+})
+
+test("a steering message during the model switch invalidates approval and restores Plan", async () => {
+  const h = await harness({
+    switchModel: async (input) => {
+      if (input.model.id === DEFAULT_MODEL.id) h.prompt("msg_new")
+    },
+  })
+  const { result } = await h.flow()
+  assert.match(result.result.content, /approval became stale/)
+  assert.match(result.result.content, /Restored Plan/)
+  assert.ok(!h.calls.switchAgent.some((input) => input.agent === "build"))
+  assert.deepEqual(h.session().model, PLAN_MODEL)
+})
+
+test("intervening manual agent or location changes are not overwritten by recovery", async () => {
+  for (const change of [{ agent: "explore" }, { location: { directory: "/elsewhere" } }]) {
+    const h = await harness({
+      switchModel: async (input) => {
+        if (input.model.id === DEFAULT_MODEL.id) h.setSession(change)
+      },
+    })
+    const { result } = await h.flow()
+    assert.match(result.result.content, /automatic restoration was not applied/)
+    assert.deepEqual(h.calls.switchAgent, [])
+    assert.deepEqual(h.calls.switchModel, [{ sessionID: "ses_1", model: DEFAULT_MODEL }])
+    assert.throws(() => h.context(), /Execution blocked/)
+  }
 })
 
 test("decline, custom, and malformed answers never switch", async () => {
@@ -172,6 +414,8 @@ test("decline, custom, and malformed answers never switch", async () => {
     const { result } = await flow({ answers: value })
     assert.match(result.result.content, /^Stayed in Plan\./)
     assert.deepEqual(calls.switchAgent, [])
+    assert.deepEqual(calls.switchModel, [])
+    assert.deepEqual(calls.modelDefault, [])
   }
 })
 
@@ -208,6 +452,7 @@ test("handoff dismissal returns a successful decline instead of interrupting the
   const result = await h.after(request.event, exit.value.output)
   assert.match(result.result.content, /^Stayed in Plan\./)
   assert.deepEqual(h.calls.switchAgent, [])
+  assert.deepEqual(h.calls.switchModel, [])
   assert.deepEqual(h.calls.forbidden, [])
   await assert.rejects(h.before().run(), /already asked/)
   h.prompt("msg_user_2")
@@ -280,14 +525,18 @@ test("dismissal normalization is scoped to both the tracked call and its session
 })
 
 test("a failed switch is reported and leaves the session in Plan", async () => {
-  const { flow, calls } = await harness({
-    switchAgent: async () => {
-      throw new Error("no such agent")
+  const h = await harness({
+    switchAgent: async (input) => {
+      if (input.agent === "build") throw new Error("no such agent")
     },
   })
-  const { result } = await flow()
-  assert.match(result.result.content, /^Stayed in Plan\. The switch to Build failed: no such agent/)
-  assert.deepEqual(calls.switchAgent, [])
+  const { result } = await h.flow()
+  assert.match(result.result.content, /^Switch to Build failed: no such agent/)
+  assert.match(result.result.content, /Restored Plan and the previous model/)
+  assert.equal(h.session().agent, "plan")
+  assert.deepEqual(h.session().model, PLAN_MODEL)
+  assert.deepEqual(h.calls.switchAgent.map((call) => call.agent), ["build", "plan"])
+  assert.deepEqual(h.calls.switchModel.map((call) => call.model), [DEFAULT_MODEL, PLAN_MODEL])
 })
 
 test("missing prerequisites fail before any modal is shown", async () => {
@@ -368,7 +617,7 @@ test("a manual agent or location change during the modal prevents the switch", a
     await request.run()
     h.setSession(change)
     const result = await h.after(request.event, { answers: [[APPROVE]] })
-    assert.match(result.result.content, /^Stayed in Plan\./)
+    assert.match(result.result.content, /^Approval not applied\./)
     assert.deepEqual(h.calls.switchAgent, [])
   }
 })
@@ -386,7 +635,7 @@ test("unrelated tools and the user's own question calls are left alone", async (
   assert.deepEqual(calls.switchAgent, [])
 })
 
-test("never prompts, interrupts, switches models, or replies to permissions", async () => {
+test("never prompts, interrupts, updates sessions, or replies to permissions", async () => {
   const { flow, calls } = await harness()
   await flow()
   assert.deepEqual(calls.forbidden, [])

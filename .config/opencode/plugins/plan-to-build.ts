@@ -1,4 +1,4 @@
-import { Plugin } from "@opencode/plugin/effect"
+import { Plugin, type Model } from "@opencode/plugin/effect"
 import { Message, ToolFailure } from "@opencode/ai"
 import { Cause, Effect, Exit, Predicate } from "effect"
 
@@ -20,6 +20,7 @@ const STAYED = "Stayed in Plan. Do not perform the action or ask again for this 
 
 interface Handoff {
   readonly sessionID: string
+  readonly messageID: string
   readonly action: string
   location?: string
   invalidated: boolean
@@ -29,6 +30,9 @@ interface SessionState {
   lastPrompt?: string
   attempted?: string
   pending?: Handoff
+  model?: Model.Ref
+  blockedMessage?: string
+  nextSelection?: { agent: string; model: Model.Ref }
 }
 
 function parseAction(input: unknown): string {
@@ -41,6 +45,13 @@ function parseAction(input: unknown): string {
 
 function locationKey(session: { location: { directory: string; workspaceID?: string } }) {
   return `${session.location.directory}|${session.location.workspaceID ?? ""}`
+}
+
+// OpenCode reports an unspecified variant as "default", so the two are the same selection.
+const variantOf = (model: Model.Ref) => model.variant ?? "default"
+
+function sameModel(actual: Model.Ref | undefined, expected: Model.Ref): boolean {
+  return actual?.providerID === expected.providerID && actual.id === expected.id && variantOf(actual) === variantOf(expected)
 }
 
 function isApproved(output: unknown): boolean {
@@ -130,6 +141,9 @@ export default Plugin.define({
     // The question must run in the session's own tool context: a nested call from here lacks the
     // Location the UI needs to display the form, so the modal would never appear.
     yield* ctx.tool.hook("execute.before", Effect.fnUntraced(function* (event) {
+      const existing = sessions.get(event.sessionID)
+      if (existing?.blockedMessage === event.messageID || existing?.nextSelection)
+        return yield* new ToolFailure({ message: "The Plan-to-Build handoff requires a verified new model request. Do not perform the action in this request." })
       if (event.tool !== TOOL) return
       const action = yield* Effect.try({
         try: () => parseAction(event.input),
@@ -144,7 +158,7 @@ export default Plugin.define({
         return yield* new ToolFailure({ message:
           "The user was already asked about switching for this request. Stay in Plan until they send a new message.",
         })
-      const handoff: Handoff = { sessionID: event.sessionID, action, invalidated: false }
+      const handoff: Handoff = { sessionID: event.sessionID, messageID: event.messageID, action, invalidated: false }
       state.pending = handoff
       calls.set(event.id, handoff)
       if (key !== undefined) state.attempted = key
@@ -156,7 +170,8 @@ export default Plugin.define({
           return yield* new ToolFailure({ message: "This session is no longer using the Plan agent." })
         handoff.location = locationKey(session)
 
-        const build = (yield* ctx.agent.get({ agentID: BUILD }).pipe(Effect.catch(() => Effect.succeed(undefined))))?.data
+        const build = (yield* ctx.agent.get({ agentID: BUILD, location: { directory: session.location.directory } })
+          .pipe(Effect.catch(() => Effect.succeed(undefined))))?.data
         if (!build || build.mode === "subagent") return yield* new ToolFailure({ message: "The Build agent is not available." })
 
         if (!(yield* ctx.tool.list()).some((tool) => tool.id === QUESTION))
@@ -186,31 +201,93 @@ export default Plugin.define({
 
     yield* ctx.tool.hook("execute.after", Effect.fnUntraced(function* (event) {
       if (event.tool !== QUESTION) return
-      const handoff = release(event.id)
-      if (!handoff || event.status !== "completed") return
+      const handoff = calls.get(event.id)
+      if (!handoff || handoff.sessionID !== event.sessionID) return
+      if (event.status !== "completed") {
+        release(event.id)
+        return
+      }
 
       const respond = (content: string) => {
         event.result = { ...event.result, content }
       }
-      if (!isApproved(event.result.output)) return respond(STAYED)
-      if (handoff.invalidated)
+      if (!isApproved(event.result.output)) {
+        release(event.id)
+        return respond(STAYED)
+      }
+      if (handoff.invalidated) {
+        release(event.id)
         return respond("Stayed in Plan. A new message arrived while the switch was pending, so the approval was not applied.")
+      }
 
+      const state = stateOf(handoff.sessionID)
+      let previous: Model.Ref | undefined
+      let target: Model.Ref | undefined
+      let switching = false
       yield* Effect.gen(function* () {
         const current = yield* ctx.session.get({ sessionID: handoff.sessionID })
         if (current.parentID !== undefined || (current.agent !== undefined && current.agent !== PLAN))
-          return respond("Stayed in Plan. The session's agent changed while the switch was pending.")
+          return respond("Approval not applied. The session's agent changed while the switch was pending.")
         if (locationKey(current) !== handoff.location)
-          return respond("Stayed in Plan. The session's location changed while the switch was pending.")
-        if (handoff.invalidated)
-          return respond("Stayed in Plan. A new message arrived while the switch was pending, so the approval was not applied.")
+          return respond("Approval not applied. The session's location changed while the switch was pending.")
+
+        const location = { directory: current.location.directory }
+        const build = (yield* ctx.agent.get({ agentID: BUILD, location })).data
+        if (build.mode === "subagent") return yield* new ToolFailure({ message: "The Build agent is not available." })
+        const fallback = build.model ? undefined : (yield* ctx.model.default({ location })).data
+        target = build.model ?? (fallback && { providerID: fallback.providerID, id: fallback.id })
+        if (!target) return yield* new ToolFailure({ message: "No default Build model is available." })
+        const available = (yield* ctx.model.list({ location })).data.find((model) =>
+          model.enabled && model.providerID === target!.providerID && model.id === target!.id)
+        if (!available || (target.variant !== undefined && !available.variants.some((variant) => variant.id === target!.variant)))
+          return yield* new ToolFailure({ message: "The configured Build model or variant is unavailable." })
+        previous = current.model ?? state.model
+        if (!previous) return yield* new ToolFailure({ message: "The current Plan model is unknown; the switch was not applied." })
+        if (handoff.invalidated) return respond("Stayed in Plan. A new message arrived, so the approval was not applied.")
+
+        // Selection changes affect the next provider step, not the request executing this tool.
+        state.blockedMessage = handoff.messageID
+        state.nextSelection = { agent: PLAN, model: previous }
+        switching = true
+        yield* ctx.session.switchModel({ sessionID: handoff.sessionID, model: target })
+        const selected = yield* ctx.session.get({ sessionID: handoff.sessionID })
+        if (handoff.invalidated || locationKey(selected) !== handoff.location ||
+          (selected.agent !== undefined && selected.agent !== PLAN) || !sameModel(selected.model, target))
+          return yield* new ToolFailure({ message: "The model switch was not verified or the approval became stale." })
         yield* ctx.session.switchAgent({ sessionID: handoff.sessionID, agent: BUILD })
+        const switched = yield* ctx.session.get({ sessionID: handoff.sessionID })
+        if (handoff.invalidated || locationKey(switched) !== handoff.location ||
+          switched.agent !== BUILD || !sameModel(switched.model, target))
+          return yield* new ToolFailure({ message: "The Build agent/model selection was not verified or the approval became stale." })
+        state.nextSelection = { agent: BUILD, model: target }
         respond(
-          `Switched to Build. Continue with the approved action: ${handoff.action}. Perform only the requested scope and retain all existing permission requirements.`,
+          `Switched to Build. Model: ${target.providerID}/${target.id}${target.variant ? `#${target.variant}` : ""}. The current Plan request must not execute further tools. Continue only in the next verified Build request with the approved action: ${handoff.action}. Perform only the requested scope and retain all existing permission requirements.`,
         )
-      }).pipe(Effect.catch((error) => Effect.sync(() => {
-        respond(`Stayed in Plan. The switch to Build failed: ${error instanceof Error ? error.message : String(error)}`)
-      })))
+      }).pipe(
+        Effect.catch((error) => Effect.gen(function* () {
+          let recovery = "The switch was not applied."
+          if (switching && previous) {
+            const restore = previous
+            recovery = yield* Effect.gen(function* () {
+              const current = yield* ctx.session.get({ sessionID: handoff.sessionID })
+              if (locationKey(current) !== handoff.location ||
+                (current.agent !== undefined && current.agent !== PLAN && current.agent !== BUILD) ||
+                (!sameModel(current.model, restore) && !sameModel(current.model, target!)))
+                return yield* new ToolFailure({ message: "The session changed; automatic restoration was not applied." })
+              yield* ctx.session.switchAgent({ sessionID: handoff.sessionID, agent: PLAN })
+              yield* ctx.session.switchModel({ sessionID: handoff.sessionID, model: restore })
+              const restored = yield* ctx.session.get({ sessionID: handoff.sessionID })
+              if (restored.agent !== PLAN || !sameModel(restored.model, restore) || locationKey(restored) !== handoff.location)
+                return yield* new ToolFailure({ message: "Restoration was not verified." })
+              return "Restored Plan and the previous model."
+            }).pipe(Effect.catch((failure) => Effect.succeed(
+              `Restoration failed: ${failure instanceof Error ? failure.message : String(failure)}. Execution is blocked until Plan and the previous model are restored.`,
+            )))
+          }
+          respond(`Switch to Build failed: ${error instanceof Error ? error.message : String(error)}. ${recovery} Do not perform the action or ask again for this request.`)
+        })),
+        Effect.ensuring(Effect.sync(() => release(event.id))),
+      )
     }))
 
     yield* ctx.session.hook("prompt", (event) => Effect.sync(() => {
@@ -222,6 +299,14 @@ export default Plugin.define({
     }))
 
     yield* ctx.session.hook("context", (event) => Effect.sync(() => {
+      const state = stateOf(event.sessionID)
+      if (state.nextSelection) {
+        const expected = state.nextSelection
+        if (event.agent !== expected.agent || !sameModel(event.model, expected.model))
+          throw new Error("Plan-to-Build selection mismatch. Execution blocked before model dispatch.")
+        state.nextSelection = undefined
+      }
+      state.model = event.model
       if (event.agent !== PLAN) {
         delete event.tools[TOOL]
         return
