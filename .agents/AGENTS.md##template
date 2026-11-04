@@ -89,7 +89,7 @@ When available and appropriate:
   the authorization forward to later operations. The bundled
   context-checkpoint backend remains exempt and manages its fallback
   internally.
-- Use `jira-cli --plain` for non-interactive Jira operations.
+- Use the Jira CLI (`jira-cli`, or `jira` if that is what's installed) with `--plain` for non-interactive Jira operations.
 - For Figma links, use the Figma REST API with the ambient `FIGMA_TOKEN`,
   passed only as an `X-Figma-Token` header; never print it. Take the file key
   and `node-id` from the URL (convert `229-53285` to `229:53285`), call
