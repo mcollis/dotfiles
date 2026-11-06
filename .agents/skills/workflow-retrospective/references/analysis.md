@@ -72,4 +72,4 @@ If a lesson can't be generalized without those, withhold it (`withheld` in the d
 
 ## 7. Measuring outcomes
 
-After a change ships, look for later sessions that exercised the target. Fewer corrections there is evidence; silence because the workflow wasn't used is not. Don't estimate time saved from durations.
+After a change ships, `reassess.md` looks for later sessions that exercised the target. Fewer corrections there is evidence; silence because the workflow wasn't used is not. Don't estimate time saved from durations.

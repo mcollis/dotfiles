@@ -268,5 +268,143 @@ class RenderTests(unittest.TestCase):
         self.assertIn("[tentative] (global) Prefers concise answers", R.render(rec))
 
 
+FID = "f-skipped-setup-hooks"
+
+
+def assess(fid=FID, status="implemented", note="Guidance is now in place.", **over):
+    a = {"id": fid, "status": status, "note": note, "at": "2026-10-10T00:00:00Z"}
+    a.update(over)
+    return a
+
+
+class AssessmentTests(unittest.TestCase):
+    def base(self, **over):
+        rec, _ = merged(R.new_record(), {"findings": [finding(**over)]})
+        return rec
+
+    def test_allowed_headless_and_never_touches_state_or_decisions(self):
+        rec = self.base()
+        rec, _ = merged(rec, {"decisions": [{"id": FID, "state": "planned", "note": "agreed"}]})
+        rec, rep = merged(rec, {"assessments": [assess()]}, "headless")
+        f = rec["findings"][0]
+        self.assertEqual(rep["assessments_applied"], [FID])
+        self.assertEqual((f["state"], len(f["decisions"])), ("planned", 1))
+        self.assertEqual(f["assessment"]["status"], "implemented")
+
+    def test_rejects_unknown_finding_bad_status_and_misplaced_evidence(self):
+        rec = self.base()
+        with self.assertRaises(ValueError):
+            merged(rec, {"assessments": [assess(fid="f-does-not-exist")]})
+        with self.assertRaises(ValueError):
+            merged(rec, {"assessments": [assess(status="fixed")]})
+        with self.assertRaises(ValueError):
+            merged(rec, {"assessments": [assess(note="")]})
+        ev = [{"sid": S2, "note": "later session", "at": "2026-10-12T00:00:00Z"}]
+        with self.assertRaises(ValueError):
+            merged(rec, {"assessments": [assess(status="implemented", evidence=ev)]})
+
+    def test_history_skips_unchanged_and_stale_and_stays_bounded(self):
+        rec = self.base()
+        rec, _ = merged(rec, {"assessments": [assess()]})
+        rec, rep = merged(rec, {"assessments": [assess(at="2026-10-11T00:00:00Z")]})
+        self.assertEqual(rep["assessments_ignored"], [{"id": FID, "reason": "unchanged"}])
+        rec, rep = merged(rec, {"assessments": [assess(note="Different", at="2026-10-05T00:00:00Z")]})
+        self.assertEqual(rep["assessments_ignored"], [{"id": FID, "reason": "stale"}])
+        for day in range(11, 25):
+            rec, _ = merged(rec, {"assessments": [assess(note="Update %d" % day, at="2026-10-%02dT00:00:00Z" % day)]})
+        f = rec["findings"][0]
+        self.assertEqual(len(f["assessments"]), 10)
+        self.assertEqual(f["assessment"], f["assessments"][-1])
+
+    def test_still_issue_evidence_after_implementation_is_surfaced_as_recurrence(self):
+        rec = self.base()
+        rec, _ = merged(rec, {"decisions": [{"id": FID, "state": "implemented"}]}, now="2026-10-10T00:00:00Z")
+        ev = [{"sid": S2, "note": "same friction again", "at": "2026-10-20T00:00:00Z"}]
+        rec, rep = merged(rec, {"assessments": [assess(status="still_issue", note="Seen again.", evidence=ev,
+                                                       at="2026-10-21T00:00:00Z")]}, "headless", now="2026-10-21T00:00:00Z")
+        f = rec["findings"][0]
+        self.assertEqual((f["state"], f["recurrence"], f["recurred_after_resolution"]), ("implemented", 2, 1))
+        self.assertEqual(rep["recurred"], [FID])
+        self.assertEqual(f["last_seen"], "2026-10-20T00:00:00Z")
+
+    def test_improvement_evidence_is_counter_evidence_not_recurrence(self):
+        rec = self.base()
+        ev = [{"sid": S2, "note": "workflow ran cleanly", "at": "2026-10-12T00:00:00Z"}]
+        rec, _ = merged(rec, {"assessments": [assess(status="improvement_observed", note="Ran without correction.", evidence=ev)]})
+        f = rec["findings"][0]
+        self.assertEqual((f["recurrence"], [c["sid"] for c in f["counter_evidence"]]), (1, [S2]))
+
+    def test_answered_questions_are_cleared_but_remembered(self):
+        rec = self.base(questions=["Is this a deliberate gate?", "Which repository owns it?"])
+        rec, rep = merged(rec, {"assessments": [assess(answered_questions=["Is this a deliberate gate?", "Never asked"])]})
+        f = rec["findings"][0]
+        self.assertEqual(f["questions"], ["Which repository owns it?"])
+        self.assertEqual([q["question"] for q in f["resolved_questions"]], ["Is this a deliberate gate?"])
+        self.assertEqual(rep["questions_cleared"], [FID])
+
+    def test_notes_are_privacy_checked(self):
+        delta = {"assessments": [assess(note="see https://x.example.com/y", answered_questions=["ask a@b.example.com"])]}
+        paths = {(h["path"], h["rule"]) for h in R.privacy_violations(delta, load_config())}
+        self.assertIn(("assessments[0].note", "url"), paths)
+        self.assertIn(("assessments[0].answered_questions[0]", "email"), paths)
+        self.assertEqual({p for p, _ in paths if p.endswith(("status", ".at", ".id"))}, set())
+
+
+class AssessedRenderTests(unittest.TestCase):
+    def sections(self, text):
+        out, current = {}, None
+        for line in text.splitlines():
+            if line.startswith("## "):
+                current = line[3:]
+                out[current] = []
+            elif current:
+                out[current].append(line)
+        return {k: "\n".join(v) for k, v in out.items()}
+
+    def test_assessed_findings_are_placed_by_what_is_known(self):
+        rec, _ = merged(R.new_record(), {"findings": [
+            finding(key="still-a-problem", title="Still", sid=S1),
+            finding(key="wrong-diagnosis", title="Wrong", sid=S2),
+            finding(key="fix-in-place", title="InPlace", sid=S3),
+            finding(key="seems-better", title="Better", sid="d" * 16),
+            finding(key="no-evidence-yet", title="Unknown", sid="e" * 16),
+        ]})
+        rec, _ = merged(rec, {"assessments": [
+            assess("f-still-a-problem", "still_issue", "Seen again."),
+            assess("f-wrong-diagnosis", "needs_correction", "Cause was overstated."),
+            assess("f-fix-in-place", "implemented", "Change is in place."),
+            assess("f-seems-better", "improvement_observed", "Ran cleanly."),
+            assess("f-no-evidence-yet", "unknown", "Not exercised yet."),
+        ]})
+        sec = self.sections(R.render(rec))
+        self.assertIn("**Still**", sec["Headline findings"])
+        self.assertIn("**Unknown**", sec["Headline findings"])
+        self.assertIn("unverified", sec["Headline findings"])
+        for title in ("Wrong", "InPlace", "Better"):
+            self.assertNotIn("**%s**" % title, sec["Headline findings"])
+        self.assertIn("**Wrong**", sec["Diagnosis needs correction"])
+        self.assertIn("**InPlace**", sec["Planned or awaiting validation"])
+        self.assertIn("**Better**", sec["Planned or awaiting validation"])
+        self.assertIn("improvement observed", sec["Planned or awaiting validation"])
+        self.assertEqual(len(sec["Changed since the previous review"].strip().splitlines()), 5)
+
+    def test_changed_since_follows_run_boundaries(self):
+        review = lambda n: {"id": "r-%s" % n, "kind": "general", "summary": "run"}
+        rec, _ = merged(R.new_record(), {"findings": [finding(title="First")], "review": review("one")}, now="2026-10-02T00:00:00Z")
+        rec, _ = merged(rec, {"assessments": [assess()]}, "headless", now="2026-10-10T00:00:00Z")
+        self.assertIn("## Changed since the previous review", R.render(rec))
+        rec, _ = merged(rec, {"review": review("two")}, "headless", now="2026-10-11T00:00:00Z")
+        self.assertIn("## Changed since the previous review", R.render(rec))
+        rec, _ = merged(rec, {"review": review("three")}, "headless", now="2026-10-20T00:00:00Z")
+        self.assertNotIn("Changed since the previous review", R.render(rec))
+
+    def test_records_without_assessments_render_as_before(self):
+        rec, _ = merged(R.new_record(), {"findings": [finding()]})
+        text = R.render(rec)
+        self.assertNotIn("Changed since", text)
+        self.assertNotIn("needs correction", text)
+        self.assertIn("## Headline findings", text)
+
+
 if __name__ == "__main__":
     unittest.main()

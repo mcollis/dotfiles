@@ -120,6 +120,17 @@ class PersistTests(unittest.TestCase):
         self.assertEqual(self.remote_record()["findings"][0]["id"], "f-alpha-step")
         self.assertIn("T alpha-step", git("--git-dir", self.remote, "show", "main:" + P.FILE_MD))
 
+    def test_assessment_round_trips_and_reaches_the_rendered_report(self):
+        store = self.store()
+        store.save({"findings": [finding("alpha-step", S1)]}, "headless")
+        out = store.save({"assessments": [{"id": "f-alpha-step", "status": "implemented",
+                                          "note": "Change is in place.", "at": "2026-10-10T00:00:00Z"}]}, "headless")
+        self.assertEqual(out["report"]["assessments_applied"], ["f-alpha-step"])
+        self.assertEqual(self.remote_record()["findings"][0]["assessment"]["status"], "implemented")
+        md = git("--git-dir", self.remote, "show", "main:" + P.FILE_MD)
+        self.assertIn("Changed since the previous review", md)
+        self.assertIn("awaiting validation", md)
+
     def test_competing_update_is_remerged_not_overwritten(self):
         store = self.store(before_push=lambda n: self.competing_writer("other-find", S2)(n) if n == 0 else None)
         out = store.save({"findings": [finding("mine-find", S1)]}, "interactive")

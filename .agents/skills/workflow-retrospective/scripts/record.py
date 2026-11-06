@@ -10,6 +10,9 @@
   record.py render  --record F [--limit N]
   record.py overview --record F [--limit N]
 
+Assessments record evidence-based progress on existing findings (reassessment). They never change
+a finding's state or any user decision.
+
 The record holds only sanitized workflow lessons. Raw transcript text, identifiers,
 paths, URLs, quotations and credentials are rejected by `check` before anything is
 merged or persisted.
@@ -39,6 +42,14 @@ CAUSES = [
 ]
 STATES = ["open", "deferred", "planned", "implemented", "validated", "dismissed"]
 RESOLVED = ("implemented", "validated", "dismissed")
+ASSESSMENTS = ["still_issue", "implemented", "improvement_observed", "needs_correction", "unknown"]
+ASSESSMENT_LABEL = {
+    "still_issue": "still an issue",
+    "implemented": "change in place, awaiting validation",
+    "improvement_observed": "improvement observed",
+    "needs_correction": "diagnosis needs correction",
+    "unknown": "unverified",
+}
 PROFILE_STATUS = ["explicit", "confirmed", "tentative"]
 SLUG = re.compile(r"^[a-z0-9][a-z0-9-]{2,60}$")
 SID = re.compile(r"^[0-9a-f]{16}$")
@@ -171,7 +182,7 @@ def validate_delta(delta, mode: str):
     if not isinstance(delta, dict):
         return ["delta must be a JSON object"]
     allowed = {"at", "review", "coverage", "profile", "profile_remove", "findings",
-               "decisions", "withheld"}
+               "assessments", "decisions", "withheld"}
     for key in delta:
         if key not in allowed:
             errors.append("unknown delta field %r" % key)
@@ -204,6 +215,27 @@ def validate_delta(delta, mode: str):
             if not ev.get("note"):
                 errors.append("%s evidence needs a sanitized note" % p)
             _timestamp(ev.get("at"), p + ".evidence.at", errors)
+    for i, a in enumerate(delta.get("assessments") or []):
+        p = "assessments[%d]" % i
+        if not a.get("id"):
+            errors.append("%s.id is required" % p)
+        _oneof(a.get("status"), ASSESSMENTS, p + ".status", errors)
+        _oneof(a.get("confidence"), CONFIDENCE, p + ".confidence", errors, optional=True)
+        if not a.get("note"):
+            errors.append("%s.note is required" % p)
+        if a.get("at"):
+            _timestamp(a["at"], p + ".at", errors)
+        evidence = a.get("evidence") or []
+        if evidence and a.get("status") not in ("still_issue", "improvement_observed"):
+            errors.append("%s: only still_issue and improvement_observed may carry evidence" % p)
+        for ev in evidence:
+            if not SID.match(str(ev.get("sid", ""))):
+                errors.append("%s evidence needs an opaque 16-hex sid" % p)
+            if not ev.get("note"):
+                errors.append("%s evidence needs a sanitized note" % p)
+            _timestamp(ev.get("at"), p + ".evidence.at", errors)
+        if not all(isinstance(q, str) for q in a.get("answered_questions") or []):
+            errors.append("%s.answered_questions must be strings" % p)
     for i, d in enumerate(delta.get("decisions") or []):
         _oneof(d.get("state"), STATES, "decisions[%d].state" % i, errors)
         if not d.get("id"):
@@ -261,6 +293,64 @@ def _merge_profile(rec, e, mode, now, report):
     report["profile_updated"].append(e["id"])
 
 
+def _absorb(cur, fid, evidence, counter, report):
+    """Adds evidence and counter-evidence; recurrence counts distinct sessions."""
+    changed = to_ms(cur["state_changed_at"])
+    for ev in evidence:
+        if ev["sid"] not in cur["sids"]:
+            cur["sids"].append(ev["sid"])
+            if cur["state"] in RESOLVED and to_ms(ev["at"]) > changed:
+                cur["recurred_after_resolution"] += 1
+                if fid not in report["recurred"]:
+                    report["recurred"].append(fid)
+    cur["sids"].sort()
+    cur["evidence"] = _dedupe(cur["evidence"] + [
+        {"sid": ev["sid"], "note": ev["note"], "at": ev["at"]} for ev in evidence],
+        lambda x: (x["sid"], x["note"]))
+    cur["evidence"] = sorted(cur["evidence"], key=lambda x: to_ms(x["at"]))[-12:]
+    cur["counter_evidence"] = sorted(_dedupe(cur["counter_evidence"] + [
+        {"sid": ev["sid"], "note": ev["note"], "at": ev["at"]} for ev in counter],
+        lambda x: (x["sid"], x["note"])), key=lambda x: to_ms(x["at"]))[-6:]
+    cur["recurrence"] = len(cur["sids"])
+
+
+def _merge_assessment(rec, a, now, report):
+    fid = a["id"]
+    cur = next((x for x in rec["findings"] if x["id"] == fid), None)
+    if cur is None:
+        raise ValueError("assessment references unknown finding %s" % fid)
+    at = a.get("at") or now
+    history = cur.setdefault("assessments", [])
+    latest = history[-1] if history else None
+    if latest and to_ms(at) < to_ms(latest["at"]):
+        report["assessments_ignored"].append({"id": fid, "reason": "stale"})
+        return
+    entry = {"status": a["status"], "at": at, "note": a["note"]}
+    for key in ("confidence", "target_rev"):
+        if a.get(key):
+            entry[key] = a[key]
+    if latest and all(latest.get(k) == entry.get(k) for k in ("status", "note", "confidence")):
+        report["assessments_ignored"].append({"id": fid, "reason": "unchanged"})
+        return
+    evidence = a.get("evidence") or []
+    if evidence and a["status"] == "still_issue":
+        _absorb(cur, fid, evidence, [], report)
+        newest = max((ev["at"] for ev in evidence), key=to_ms)
+        if to_ms(newest) > to_ms(cur["last_seen"]):
+            cur["last_seen"] = newest
+    elif evidence:
+        _absorb(cur, fid, [], evidence, report)
+    history.append(entry)
+    cur["assessments"] = history[-10:]
+    cur["assessment"] = entry
+    for q in a.get("answered_questions") or []:
+        if q in cur["questions"]:
+            cur["questions"].remove(q)
+            cur["resolved_questions"] = (cur.get("resolved_questions", []) + [{"question": q, "at": at}])[-10:]
+            report["questions_cleared"].append(fid)
+    report["assessments_applied"].append(fid)
+
+
 def _merge_finding(rec, e, now, report):
     fid = e.get("id") or "f-" + e["key"]
     cur = next((x for x in rec["findings"] if x["id"] == fid), None)
@@ -297,24 +387,8 @@ def _merge_finding(rec, e, now, report):
         report["findings_updated"].append(fid)
         if to_ms(latest) > to_ms(cur["last_seen"]):
             cur["last_seen"] = latest
-    changed = to_ms(cur["state_changed_at"])
-    for ev in evidence:
-        if ev["sid"] not in cur["sids"]:
-            cur["sids"].append(ev["sid"])
-            if cur["state"] in RESOLVED and to_ms(ev["at"]) > changed:
-                cur["recurred_after_resolution"] += 1
-                if fid not in report["recurred"]:
-                    report["recurred"].append(fid)
-    cur["sids"].sort()
-    cur["evidence"] = _dedupe(cur["evidence"] + [
-        {"sid": ev["sid"], "note": ev["note"], "at": ev["at"]} for ev in evidence],
-        lambda x: (x["sid"], x["note"]))
-    cur["evidence"] = sorted(cur["evidence"], key=lambda x: to_ms(x["at"]))[-12:]
-    cur["counter_evidence"] = sorted(_dedupe(cur["counter_evidence"] + [
-        {"sid": ev["sid"], "note": ev["note"], "at": ev["at"]} for ev in e.get("counter_evidence") or []],
-        lambda x: (x["sid"], x["note"])), key=lambda x: to_ms(x["at"]))[-6:]
+    _absorb(cur, fid, evidence, e.get("counter_evidence") or [], report)
     cur["questions"] = _dedupe(cur["questions"] + list(e.get("questions") or []), lambda q: q)[-6:]
-    cur["recurrence"] = len(cur["sids"])
 
 
 def _merge_coverage(rec, c):
@@ -344,7 +418,8 @@ def merge(record, delta, mode="interactive", now=None):
     rec = copy.deepcopy(record)
     report = {k: [] for k in (
         "profile_added", "profile_updated", "profile_contradictions", "findings_added",
-        "findings_updated", "findings_ignored_fields", "recurred", "decisions_applied")}
+        "findings_updated", "findings_ignored_fields", "recurred", "decisions_applied",
+        "assessments_applied", "assessments_ignored", "questions_cleared")}
 
     for e in delta.get("profile") or []:
         _merge_profile(rec, e, mode, now, report)
@@ -352,6 +427,8 @@ def merge(record, delta, mode="interactive", now=None):
         rec["profile"]["entries"] = [x for x in rec["profile"]["entries"] if x["id"] != pid]
     for e in delta.get("findings") or []:
         _merge_finding(rec, e, now, report)
+    for a in delta.get("assessments") or []:
+        _merge_assessment(rec, a, now, report)
     for d in delta.get("decisions") or []:
         cur = next((x for x in rec["findings"] if x["id"] == d["id"]), None)
         if cur is None:
@@ -497,23 +574,61 @@ def _rank(f):
             -f["recurrence"], -to_ms(f["last_seen"]))
 
 
+def _assess(f):
+    return (f.get("assessment") or {}).get("status")
+
+
 def _line(f):
     tags = [f["class"].replace("_", " "), f["impact"] + " impact", "%d session%s" % (f["recurrence"], "" if f["recurrence"] == 1 else "s")]
     if f["recurred_after_resolution"]:
         tags.append("RECURRED after %s" % f["state"])
     if f["confidence"] == "low":
         tags.append("low confidence")
+    status = _assess(f)
+    if status:
+        tags.append(ASSESSMENT_LABEL[status])
     return "**%s** — %s" % (f["title"], ", ".join(tags))
 
 
+def _changes_cutoff(rec):
+    """Assessments newer than this belong to 'changed since the previous review'.
+
+    The review entry is saved last in a run. Assessments newer than the latest review
+    entry are an in-progress run's; otherwise the run is complete and the cutoff is
+    the review before it. None means every assessment counts.
+    """
+    times = [a["at"] for f in rec["findings"] for a in f.get("assessments", [])]
+    reviews = rec["reviews"]
+    if not times or not reviews:
+        return None
+    if to_ms(max(times, key=to_ms)) > to_ms(reviews[-1]["at"]):
+        return reviews[-1]["at"]
+    return reviews[-2]["at"] if len(reviews) > 1 else None
+
+
 def render(rec, limit=5) -> str:
-    active = [f for f in rec["findings"] if f["state"] in ("open", "deferred")]
-    recurred = [f for f in rec["findings"] if f["state"] in RESOLVED and f["recurred_after_resolution"]]
+    findings = rec["findings"]
+    undecided = [f for f in findings if f["state"] in ("open", "deferred")]
+    active = [f for f in undecided if _assess(f) not in ("needs_correction", "implemented", "improvement_observed")]
+    corrections = [f for f in undecided if _assess(f) == "needs_correction"]
+    observed = [f for f in undecided if _assess(f) in ("implemented", "improvement_observed")]
+    recurred = [f for f in findings if f["state"] in RESOLVED and f["recurred_after_resolution"]]
     ranked = sorted(recurred, key=_rank) + sorted(active, key=_rank)
     head, rest = ranked[:limit], ranked[limit:]
-    progress = [f for f in rec["findings"] if f["state"] in ("planned", "implemented")]
+    progress = [f for f in findings if f["state"] in ("planned", "implemented")] + observed
     lines = ["# Workflow retrospective", "",
              "_Revision %d · updated %s_" % (rec["revision"], rec["updated"] or "never"), ""]
+    cutoff = _changes_cutoff(rec)
+    changed = []
+    for f in findings:
+        a = f.get("assessment")
+        if a and (cutoff is None or to_ms(a["at"]) > to_ms(cutoff)):
+            changed.append((to_ms(a["at"]), f, a))
+    if changed:
+        lines.append("## Changed since the previous review")
+        for _, f, a in sorted(changed, key=lambda x: (-x[0], x[1]["title"])):
+            lines.append("- **%s** — %s: %s" % (f["title"], ASSESSMENT_LABEL[a["status"]], a["note"]))
+        lines.append("")
     lines.append("## Headline findings")
     if not head:
         lines.append("_None open._")
@@ -526,6 +641,9 @@ def render(rec, limit=5) -> str:
     if rest:
         lines += ["", "## Remaining backlog"]
         lines += ["- [%s] %s" % (f["state"], _line(f)) for f in rest]
+    if corrections:
+        lines += ["", "## Diagnosis needs correction"]
+        lines += ["- %s" % _line(f) for f in sorted(corrections, key=_rank)]
     if progress:
         lines += ["", "## Planned or awaiting validation"]
         lines += ["- [%s] %s" % (f["state"], _line(f)) for f in progress]

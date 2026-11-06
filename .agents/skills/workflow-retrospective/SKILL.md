@@ -19,12 +19,13 @@ Act as the user: reconstruct what they were trying to do, where they had to inte
 
 1. **Load context.** `persist.py status`, then `persist.py read` for the record (profile, coverage, backlog). `environment.py check` for the cached environment. If `persist.py status` shows queued outbox deltas, run `persist.py flush` first. If the profile or environment is missing or stale, read `references/discovery.md`. Decide what else is stale and which workers are warranted per `references/orchestrate.md`.
 2. **Scope.** `record.py window` → `collect.py inventory --since <min_since_ms>` → `record.py plan`. This lists sessions to examine, with `after_ms` for sessions that only gained new turns.
-3. **Analyze.** Read `references/analysis.md`. Examine the sessions directly or through bounded read-only workers. Collect candidate findings, profile observations, and counterexamples.
-4. **Sanitize and save.** Read `references/record.md`. Write a delta, `record.py check` it, then `persist.py save`. Save after each batch of discoveries, not only at the end. Record coverage with `record.py coverage-entry`; a partial or failed collection must not be recorded as complete.
-5. **Present** (interactive). Read `references/review.md`: show `record.py overview` — a few headline findings, then a compact backlog — and let the user choose what to tackle. Unselected items stay saved.
-6. **Plan** selected items only. Read `references/planning.md`: investigate, resolve decisions with the user, and produce a decision-complete handoff. Record the agreed state as a decision.
+3. **Reassess previous findings.** Read `references/reassess.md`. Before looking for new problems, check what happened to each open, planned, or implemented finding using the target's current content and the sessions already planned. Save evidence-backed assessments; they never change a decision and the user is not asked to maintain them.
+4. **Analyze.** Read `references/analysis.md`. Examine the sessions directly or through bounded read-only workers. Collect candidate findings, profile observations, and counterexamples.
+5. **Sanitize and save.** Read `references/record.md`. Write a delta, `record.py check` it, then `persist.py save`. Save after each batch of assessments or discoveries, not only at the end, and save the review entry last. Record coverage with `record.py coverage-entry`; a partial or failed collection must not be recorded as complete.
+6. **Present** (interactive). Read `references/review.md`: show `record.py overview`, which leads with what changed since the previous review, then a few headline findings and a compact backlog, and let the user choose what to tackle. Unselected items stay saved.
+7. **Plan** selected items only. Read `references/planning.md`: investigate, resolve decisions with the user, and produce a decision-complete handoff. Record the agreed state as a decision.
 
-**Headless** stops after step 4: discover, propose, save. It asks nothing, records open questions on the finding, never records decisions or confirmed preferences, and never changes skills, instructions, tools, or code.
+**Headless** stops after step 5: reassess, discover, propose, save. It asks nothing, records open questions on the finding, never records decisions or confirmed preferences, and never changes skills, instructions, tools, or code.
 
 ## Hard rules
 
@@ -34,6 +35,7 @@ Act as the user: reconstruct what they were trying to do, where they had to inte
 - One isolated correction supports a finding, not a universal rule. Generalize only with recurrence across sessions or the user's confirmation. Ordinary requirement refinement is not an agent failure.
 - Inferred preferences are saved as `tentative` and never override the user's current request, a stated or confirmed preference, or an authorization boundary.
 - `persist.py init` creates the private record and may use stored write credentials. Run it only after the user explicitly approves creating it. No other operation uses stored credentials.
+- Reassessment records what was observed. It never changes a decision, approves or dismisses anything, or closes a finding, and handoffs and commits are leads to verify, not proof.
 - Never report time saved from session durations, and never treat silence after a change as validation.
 - Use `[verified]` / `[inferred]` / `[unknown]` honestly; unresolved uncertainty stays on the finding as a question.
 
@@ -43,6 +45,7 @@ Act as the user: reconstruct what they were trying to do, where they had to inte
 |---|---|
 | `references/discovery.md` | profile or environment missing, contradicted, or stale |
 | `references/orchestrate.md` | deciding freshness work and which workers to run |
+| `references/reassess.md` | checking what happened to previous findings |
 | `references/analysis.md` | examining sessions and diagnosing causes |
 | `references/record.md` | building a delta, coverage entry, or reading the schema |
 | `references/review.md` | presenting findings and capturing selections |

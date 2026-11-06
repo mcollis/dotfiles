@@ -19,4 +19,4 @@ For each selected finding:
 - **Verification**: named checks and expected results
 - **Return to planning if**: the files don't match, a new abstraction or behavior is needed, or scope changes
 
-Save the outcome as a decision (`planned`). After the change is made, mark it `implemented`; mark it `validated` only when the user confirms based on later sessions.
+Save the outcome as a decision (`planned`). Do not wait for a completion report: the next run's reassessment records `implemented` and later `improvement_observed` from what it can verify. An agent that completes a handoff may record `implemented` as an assessment, never as a decision. `validated` stays the user's decision.

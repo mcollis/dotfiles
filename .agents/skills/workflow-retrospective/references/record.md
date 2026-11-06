@@ -6,7 +6,7 @@ The record is one JSON document (plus a rendered Markdown overview) in the confi
 
 - `profile.entries[]`: `id, text, scope, status (explicit|confirmed|tentative), rationale, observations, contradictions[]`
 - `coverage[]`: per `source` + `machine` + `scope` (`general` or `focus`+text): `from_ms, to_ms, complete, sessions{sid: updated_ms}` (partial only), `gaps[]`
-- `findings[]`: `id, title, summary, class, category, impact, confidence, cause, proposal, target, target_rev, state, sids[], recurrence, evidence[], counter_evidence[], questions[], decisions[]`, plus `recurred_after_resolution`
+- `findings[]`: `id, title, summary, class, category, impact, confidence, cause, proposal, target, target_rev, state, sids[], recurrence, evidence[], counter_evidence[], questions[], decisions[]`, plus `recurred_after_resolution`, and once reassessed: `assessment` (latest), `assessments[]` (last 10), `resolved_questions[]`
 - `reviews[]`: brief log of runs (`id, kind, focus, summary, counts`)
 - `withheld`: count and generic classes of observations omitted for privacy
 
@@ -26,6 +26,10 @@ States: `open, deferred, planned, implemented, validated, dismissed`.
     "evidence": [{"sid": "<16 hex from inventory>", "note": "<sanitized>", "at": "<ISO time of the episode>"}],
     "counter_evidence": [], "questions": []
   }],
+  "assessments": [{"id": "f-skipped-configured-setup", "status": "improvement_observed", "confidence": "medium",
+                   "note": "<sanitized>", "at": "<ISO time of the newest evidence>",
+                   "evidence": [{"sid": "<16 hex>", "note": "<sanitized>", "at": "<ISO>"}],
+                   "answered_questions": ["<stored question text>"]}],
   "decisions": [{"id": "f-skipped-configured-setup", "state": "planned", "note": "<sanitized>"}],
   "profile_remove": [],
   "withheld": [{"class": "business_detail"}]
@@ -34,6 +38,8 @@ States: `open, deferred, planned, implemented, validated, dismissed`.
 
 - `key` becomes the id `f-<key>` (lowercase slug). Reuse the same key for the same finding so evidence accumulates; recurrence counts distinct `sid`s, so re-reviewing a session never inflates it.
 - Resolved findings (`implemented`, `validated`, `dismissed`) keep their descriptive fields; later evidence dated after the resolution marks `recurred_after_resolution` and surfaces it. It does not reopen or dismiss.
+- `assessments` record evidence-based progress (`still_issue | implemented | improvement_observed | needs_correction | unknown`, see `reassess.md`). They are allowed in headless mode, reference an existing finding, and never change its `state` or `decisions`. Evidence is allowed only for `still_issue` (counted as a new session, and surfaced as a recurrence if the finding is resolved) and `improvement_observed` (stored as counter-evidence). An unchanged or older assessment is skipped; `answered_questions` moves matching questions to `resolved_questions`.
+- Save the `review` entry last in a run: "Changed since the previous review" is the assessments newer than the previous completed review.
 - `decisions` and `profile_remove` are interactive-only and must reflect what the user actually said. Headless deltas may contain only `review`, `coverage`, `findings`, tentative `profile`, and `withheld`.
 - Descriptive fields on `planned`/`implemented`/`validated`/`dismissed` findings are not overwritten by later deltas (reported as ignored).
 
