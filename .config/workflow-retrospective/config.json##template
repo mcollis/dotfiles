@@ -1,0 +1,20 @@
+{
+  "default_window_days": 30,
+  "sources": {
+    "opencode": { "enabled": "auto", "command": "opencode" },
+    "claude": { "enabled": "auto", "root": "~/.claude/projects" },
+    "codex": { "enabled": "auto", "root": "~/.codex/sessions" }
+  },
+{% if yadm.class == "Work" %}
+  "privacy": {
+    "deny_terms": ["ExtraHop", "depot", "ex-agents"]
+  },
+  "persistence": {
+    "backend": "gitlab-snippet",
+    "host": "gitlab.i.extrahop.com",
+    "title": "workflow-retrospective"
+  }
+{% else %}
+  "persistence": { "backend": "none" }
+{% endif %}
+}

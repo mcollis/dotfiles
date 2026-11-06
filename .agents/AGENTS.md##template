@@ -88,7 +88,10 @@ When available and appropriate:
   to that single command, never expose credential values, and do not carry
   the authorization forward to later operations. The bundled
   context-checkpoint backend remains exempt and manages its fallback
-  internally.
+  internally. The bundled workflow-retrospective backend may use `glab`'s
+  stored credentials solely to create its private review snippet during an
+  explicitly confirmed initialization (`persist.py init --confirmed`); every
+  other operation uses the ambient token or plain `git`.
 - Use the Jira CLI (`jira-cli`, or `jira` if that is what's installed) with `--plain` for non-interactive Jira operations.
 - For Figma links, use the Figma REST API with the ambient `FIGMA_TOKEN`,
   passed only as an `X-Figma-Token` header; never print it. Take the file key
