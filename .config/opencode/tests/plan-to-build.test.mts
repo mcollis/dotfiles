@@ -642,7 +642,7 @@ test("never prompts, interrupts, updates sessions, or replies to permissions", a
 })
 
 test("context hook removes the tool for non-Plan agents and adds guidance for Plan", async () => {
-  const { hooks } = await harness()
+  const { hooks, tool } = await harness()
   const build = { agent: "build", tools: { switch_to_build: {}, read: {} }, system: [], messages: [] }
   hooks.context(build)
   assert.deepEqual(Object.keys(build.tools), ["read"])
@@ -653,6 +653,16 @@ test("context hook removes the tool for non-Plan agents and adds guidance for Pl
   assert.deepEqual(Object.keys(plan.tools), ["switch_to_build"])
   assert.equal(plan.system.length, 1)
   assert.match(plan.system[0].text, /switch_to_build/)
+  assert.match(plan.system[0].text, /Discussing, refining, or agreeing with an approach stays in Plan/)
+  assert.match(plan.system[0].text, /bare "yes" answers the question just asked and is not execution approval/)
+  assert.match(plan.system[0].text, /intent to execute is clear and substantive decisions are settled/)
+  assert.match(plan.system[0].text, /Plan ready; execution not yet authorized\./)
+  assert.match(plan.system[0].text, /After a declined switch, keep planning and do not re-offer/)
+
+  const { description } = tool()
+  assert.match(description, /execution intent is clear and substantive decisions are settled/)
+  assert.match(description, /bare yes[^.]*is not execution intent/)
+  assert.match(description, /After a declined switch, do not call it again for that request/)
 })
 
 test("context hook rewrites only the handoff paragraph of the Plan reminder", async () => {
@@ -667,6 +677,10 @@ test("context hook rewrites only the handoff paragraph of the Plan reminder", as
   assert.ok(!text.includes("Tell them they need to switch agents."))
   assert.match(text, /approves the `switch_to_build` modal/)
   assert.match(text, /Do not perform the action while still in Plan\./)
+  assert.match(text, /agreeing with an approach stays in Plan, and a bare yes answers the question just asked and is not execution approval/)
+  assert.match(text, /only when execution intent is clear and substantive decisions are settled/)
+  assert.match(text, /Plan ready; execution not yet authorized\./)
+  assert.match(text, /After a declined switch, keep planning and do not re-offer the switch for that request\./)
   assert.ok(text.includes("Do not create or update plan files unless the user explicitly asks you to"))
   assert.ok(text.includes("Do not modify any other files or ask a subagent to do so."))
   assert.equal(
