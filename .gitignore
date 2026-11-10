@@ -7,7 +7,6 @@
 !/.codex/rules/
 !/.codex/rules/policy.rules
 /.agents/.skill-lock.json
-/.config/opencode/commands/
 /.config/opencode/node_modules/
 /.config/opencode/plugins/ex.ts
 /.config/opencode/plugins/ex-notices/tui.ts

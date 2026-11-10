@@ -1,5 +1,4 @@
 node_modules/
-commands/
 plugins/herdr-agent-state.js
 cli.json
 /opencode.json
