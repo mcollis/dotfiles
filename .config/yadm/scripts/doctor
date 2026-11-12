@@ -33,14 +33,9 @@ else
 fi
 
 check_command "$YADM_BIN"
-check_command wt
 check_command claude
 check_command codex
 check_command jq
-
-if command -v wt >/dev/null 2>&1 && ! "$SCRIPTS_DIR/generate-worktrunk-config" --check; then
-  status=1
-fi
 
 if is_work_machine; then
   if "$YADM_BIN" submodule status --recursive | grep -q '^-'; then

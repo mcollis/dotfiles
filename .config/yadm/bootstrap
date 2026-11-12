@@ -207,12 +207,6 @@ else
   fi
 fi
 
-if command -v wt >/dev/null 2>&1; then
-  "$SCRIPTS_DIR/generate-worktrunk-config"
-else
-  printf '%s\n' "Worktrunk is not installed; run generate-worktrunk-config after installing wt."
-fi
-
 if [[ ! -d "$HOME/.config/opencode/node_modules" ]]; then
   printf '%s\n' "OpenCode dependencies are absent; run: npm ci --prefix ~/.config/opencode"
 fi

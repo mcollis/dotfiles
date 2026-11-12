@@ -9,7 +9,7 @@ their final paths, not links into a separate checkout.
 - **Default**: no yadm class. Provides portable configuration and the current
   Bedrock model defaults without private ExtraHop bundles.
 - **Work**: `local.class = Work`. Adds the EX and Depot submodules, internal
-  workflows, and Worktrunk conventions.
+  workflows.
 
 Check the current profile with:
 
@@ -37,8 +37,7 @@ yadm bootstrap
 ```
 
 Bootstrap is idempotent. It applies yadm alternatives, seeds missing mutable
-Claude and Codex configuration, and generates `~/.config/worktrunk/config.toml`.
-On Work machines it also initializes the EX and Depot submodules and reconciles
+Claude and Codex configuration. On Work machines it also initializes the EX and Depot submodules and reconciles
 the Claude and Codex EX plugin registrations.
 
 It intentionally does not install system packages, authenticate services, or run
@@ -77,26 +76,6 @@ yadm pull
 yadm bootstrap
 ```
 
-## Worktrunk
-
-Never edit the generated `~/.config/worktrunk/config.toml` or the selected
-`base.toml` copy. Edit the tracked profile source instead:
-
-```sh
-# Default installation
-$EDITOR ~/.config/worktrunk/base.toml##default
-
-# Work installation
-$EDITOR ~/.config/worktrunk/base.toml##class.Work
-
-~/.config/yadm/scripts/generate-worktrunk-config --dry-run
-~/.config/yadm/scripts/generate-worktrunk-config
-wt config show
-```
-
-The default profile generates its portable base. The Work profile composes the
-EX fragment, Work base, and Depot fragment in that order.
-
 ## Orca
 
 Orca (the desktop ADE) is configured from the `ex` submodule's tracked project
@@ -132,12 +111,12 @@ Run the read-only doctor after setup or when troubleshooting:
 ~/.config/yadm/scripts/doctor
 ```
 
-It reports the selected profile, required commands, Worktrunk freshness, Work
+It reports the selected profile, required commands, Work
 submodules, Orca configuration drift, and OpenCode dependency state.
 
 ## Local State
 
 Application-managed state remains outside yadm, including Claude/Codex sessions,
-OpenCode dependencies, generated Worktrunk configuration,
+OpenCode dependencies,
 Orca's own settings store, and Codex system skills. Credentials, SSH keys, AWS
 configuration, GitLab/Jira authentication, and other secrets are never tracked.

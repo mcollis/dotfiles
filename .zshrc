@@ -97,8 +97,6 @@ wptail() {
 export OPENCODE_DISABLE_CLAUDE_CODE=1
 export PATH="$HOME/.opencode/bin:$PATH"
 
-if command -v wt >/dev/null 2>&1; then eval "$(command wt config shell init zsh)"; fi
-
 
 
 [ -f ~/.config/portal/env.sh ] && . ~/.config/portal/env.sh

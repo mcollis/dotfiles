@@ -73,13 +73,12 @@ prefix_rule(pattern = ["jira-cli", "issue", "view"], decision = "allow")
 prefix_rule(pattern = ["glab", "mr", "view"], decision = "allow")
 
 {% endif %}
-# Read-only Git and Worktrunk inspection.
+# Read-only Git inspection.
 prefix_rule(pattern = ["git", "status"], decision = "allow")
 prefix_rule(pattern = ["git", "diff"], decision = "allow")
 prefix_rule(pattern = ["git", "log"], decision = "allow")
 prefix_rule(pattern = ["git", "show"], decision = "allow")
 prefix_rule(pattern = ["git", "worktree", "list"], decision = "allow")
-prefix_rule(pattern = ["wt", "list"], decision = "allow")
 
 # Read-only Docker inspection.
 prefix_rule(pattern = ["docker", "ps"], decision = "allow")
