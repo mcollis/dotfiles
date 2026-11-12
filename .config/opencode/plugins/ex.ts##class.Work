@@ -1,6 +1,6 @@
 import { Plugin } from "@opencode/plugin"
 import { existsSync } from "node:fs"
-import { pathToFileURL } from "node:url"
+import { fileURLToPath } from "node:url"
 import { redactText } from "./secret-redactor.ts"
 
 // Generic bootstrap for OpenCode integrations shipped inside the `ex`
@@ -16,7 +16,12 @@ import { redactText } from "./secret-redactor.ts"
 // The one thing it does supply is `redact`: the checkpoint renderer sends
 // session text to a model through a path the secret-redactor session hooks do
 // not cover, so the same scrubber is handed in rather than duplicated.
-const ENTRY = `${process.env.HOME}/.agents/plugins/ex/integrations/opencode/index.ts`
+//
+// The import below must stay a literal relative path: OpenCode finds the files
+// a plugin depends on by scanning its import statements, and only watches and
+// reloads what it finds. A computed specifier is invisible to that scan, so a
+// reload would keep running the old adapter.
+const ENTRY = fileURLToPath(new URL("../../../.agents/plugins/ex/integrations/opencode/index.ts", import.meta.url))
 
 export default Plugin.define({
   id: "ex",
@@ -29,7 +34,7 @@ export default Plugin.define({
       return
     }
 
-    const mod = await import(pathToFileURL(ENTRY).href)
+    const mod = await import("../../../.agents/plugins/ex/integrations/opencode/index.ts")
     const createPlugin = mod.default
     if (typeof createPlugin !== "function") return
 
