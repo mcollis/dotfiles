@@ -6,7 +6,7 @@
   "share": "disabled",
   "agent": {
     "plan": {
-      "model": "amazon-bedrock/openai.gpt-6.1-sol",
+      "model": "amazon-bedrock/openai.gpt-6.2-sol",
       "options": {
         "reasoningEffort": "high"
       }
