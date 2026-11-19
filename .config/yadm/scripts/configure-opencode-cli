@@ -4,10 +4,12 @@ set -euo pipefail
 # Keeps the `ex` terminal companion registered in the OpenCode CLI settings.
 #
 # cli.json is owned by the OpenCode terminal client (its settings dialog
-# rewrites it), so it is deliberately not tracked or templated here. Only this
-# one entry is managed: present on Work machines, where bootstrap generates the
-# plugin from plugins/ex-notices/tui.ts##class.Work, and removed everywhere else so a machine
-# without the file never points at a missing plugin.
+# rewrites it), so it is deliberately not tracked or templated here. Only two
+# things are managed. The `ex` plugin entry is present on Work machines, where
+# bootstrap generates the plugin from plugins/ex-notices/tui.ts##class.Work, and
+# removed everywhere else so a machine without the file never points at a
+# missing plugin. tabs.mode defaults to "off" on every machine unless the user
+# has already set tabs.mode or the legacy tabs.enabled.
 
 readonly CLI_JSON="${XDG_CONFIG_HOME:-$HOME/.config}/opencode/cli.json"
 readonly ENTRY='./plugins/ex-notices/tui.ts'
@@ -38,21 +40,34 @@ path, entry, want = sys.argv[1:4]
 with open(path) as handle:
     data = json.load(handle)
 
+changes = []
+
 plugins = list(data.get("plugins", []))
 has = entry in plugins
 if want == "present" and not has:
     plugins.append(entry)
+    data["plugins"] = plugins
+    changes.append(f"Added {entry}")
 elif want == "absent" and has:
-    plugins = [item for item in plugins if item != entry]
-else:
+    data["plugins"] = [item for item in plugins if item != entry]
+    changes.append(f"Removed {entry}")
+
+tabs = data.get("tabs")
+if not isinstance(tabs, dict):
+    tabs = {}
+if "mode" not in tabs and "enabled" not in tabs:
+    tabs["mode"] = "off"
+    data["tabs"] = tabs
+    changes.append("Set tabs.mode to off")
+
+if not changes:
     raise SystemExit(0)
 
-data["plugins"] = plugins
 fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
 with os.fdopen(fd, "w") as handle:
     json.dump(data, handle, indent=2)
     handle.write("\n")
 os.chmod(tmp, os.stat(path).st_mode & 0o777)
 os.replace(tmp, path)
-print(f"{'Added' if want == 'present' else 'Removed'} {entry} in {path}")
+print(f"{'; '.join(changes)} in {path}")
 PY
