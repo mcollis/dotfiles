@@ -10,13 +10,13 @@ const APPROVE = "Switch to Build and continue"
 const DECLINE = "Stay in Plan"
 const MAX_ACTION = 500
 
-const GUIDANCE = `Discussing, refining, or agreeing with an approach stays in Plan. A bare "yes" answers the question just asked and is not execution approval. Call \`${TOOL}\` with a concise description of the action only when the user's intent to execute is clear and substantive decisions are settled. Call it alone, without performing the action first. Do not offer a switch merely because a plan is complete. When the plan is ready but execution is not authorized, say: Plan ready; execution not yet authorized. After a declined switch, keep planning and do not re-offer the switch for that request.`
+const GUIDANCE = `Discussing, refining, or agreeing with an approach stays in Plan. A bare "yes" answers the question just asked and is not execution approval. Call \`${TOOL}\` with a concise description of the action only when the user's intent to execute is clear and substantive decisions are settled. Call it alone, without performing the action first. Do not offer a switch merely because a plan is complete. When the plan is ready but execution is not authorized, say: Plan ready; execution not yet authorized. After a declined or dismissed switch, keep planning and do not re-offer it within the same user message. If the user then sends a new message that explicitly asks you to switch or to build, call \`${TOOL}\` again.`
 
 const HANDOFF_OLD =
   "You remain in Plan mode until the user switches agents. If the user asks you to implement changes, do not do so. Tell them they need to switch agents."
-const HANDOFF_NEW = `You remain in Plan mode until the user switches agents manually or approves the \`${TOOL}\` modal. Discussing, refining, or agreeing with an approach stays in Plan, and a bare yes answers the question just asked and is not execution approval. Use \`${TOOL}\` to request approval only when execution intent is clear and substantive decisions are settled. When the plan is ready but execution is not authorized, say: Plan ready; execution not yet authorized. After a declined switch, keep planning and do not re-offer the switch for that request. Do not perform the action while still in Plan.`
+const HANDOFF_NEW = `You remain in Plan mode until the user switches agents manually or approves the \`${TOOL}\` modal. Discussing, refining, or agreeing with an approach stays in Plan, and a bare yes answers the question just asked and is not execution approval. Use \`${TOOL}\` to request approval only when execution intent is clear and substantive decisions are settled. When the plan is ready but execution is not authorized, say: Plan ready; execution not yet authorized. After a declined or dismissed switch, keep planning and do not re-offer it within the same user message. If the user then sends a new message that explicitly asks you to switch or to build, call \`${TOOL}\` again. Do not perform the action while still in Plan.`
 
-const STAYED = "Stayed in Plan. Do not perform the action or ask again for this request."
+const STAYED = `Stayed in Plan. Do not perform the action or ask again until the user sends a new message. If that message explicitly asks you to switch or to build, call ${TOOL} again.`
 
 interface Handoff {
   readonly sessionID: string
@@ -93,7 +93,7 @@ export default Plugin.define({
       editor.add({
         name: TOOL,
         description:
-          "Ask the user, through the native question modal, to switch this session from Plan to Build so a requested action can be performed. Plan agent only. Use only when execution intent is clear and substantive decisions are settled; discussing or agreeing with an approach, or a bare yes, is not execution intent. After a declined switch, do not call it again for that request.",
+          "Ask the user, through the native question modal, to switch this session from Plan to Build so a requested action can be performed. Plan agent only. Use only when execution intent is clear and substantive decisions are settled; discussing or agreeing with an approach, or a bare yes, is not execution intent. After a declined switch, do not call it again within the same user message; a new user message that explicitly asks to switch or build allows another request.",
         input: {
           type: "object",
           properties: {
@@ -156,7 +156,7 @@ export default Plugin.define({
       const key = state.lastPrompt
       if (key !== undefined && state.attempted === key)
         return yield* new ToolFailure({ message:
-          "The user was already asked about switching for this request. Stay in Plan until they send a new message.",
+          "The user was already asked about switching for this message. Stay in Plan until they send a new message; if it explicitly asks to switch or build, call this tool again.",
         })
       const handoff: Handoff = { sessionID: event.sessionID, messageID: event.messageID, action, invalidated: false }
       state.pending = handoff
@@ -284,7 +284,7 @@ export default Plugin.define({
               `Restoration failed: ${failure instanceof Error ? failure.message : String(failure)}. Execution is blocked until Plan and the previous model are restored.`,
             )))
           }
-          respond(`Switch to Build failed: ${error instanceof Error ? error.message : String(error)}. ${recovery} Do not perform the action or ask again for this request.`)
+          respond(`Switch to Build failed: ${error instanceof Error ? error.message : String(error)}. ${recovery} Do not perform the action or ask again until the user sends a new message.`)
         })),
         Effect.ensuring(Effect.sync(() => release(event.id))),
       )

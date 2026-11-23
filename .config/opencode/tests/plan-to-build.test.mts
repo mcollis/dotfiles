@@ -577,7 +577,9 @@ test("a second request while one is awaiting an answer is refused", async () => 
 test("one modal per user request, a new user message allows another", async () => {
   const { before, prompt, flow } = await harness()
   prompt("msg_user_1")
-  await flow({ answers: [["Stay in Plan"]] })
+  const { result: declined } = await flow({ answers: [["Stay in Plan"]] })
+  assert.match(declined.result.content, /until the user sends a new message/)
+  assert.match(declined.result.content, /explicitly asks you to switch or to build, call switch_to_build again/)
   await assert.rejects(before().run(), /already asked/)
   prompt("msg_user_2")
   const again = before()
@@ -657,12 +659,13 @@ test("context hook removes the tool for non-Plan agents and adds guidance for Pl
   assert.match(plan.system[0].text, /bare "yes" answers the question just asked and is not execution approval/)
   assert.match(plan.system[0].text, /intent to execute is clear and substantive decisions are settled/)
   assert.match(plan.system[0].text, /Plan ready; execution not yet authorized\./)
-  assert.match(plan.system[0].text, /After a declined switch, keep planning and do not re-offer/)
+  assert.match(plan.system[0].text, /do not re-offer it within the same user message/)
+  assert.match(plan.system[0].text, /new message that explicitly asks you to switch or to build, call `switch_to_build` again/)
 
   const { description } = tool()
   assert.match(description, /execution intent is clear and substantive decisions are settled/)
   assert.match(description, /bare yes[^.]*is not execution intent/)
-  assert.match(description, /After a declined switch, do not call it again for that request/)
+  assert.match(description, /do not call it again within the same user message; a new user message that explicitly asks to switch or build allows another request/)
 })
 
 test("context hook rewrites only the handoff paragraph of the Plan reminder", async () => {
@@ -680,7 +683,8 @@ test("context hook rewrites only the handoff paragraph of the Plan reminder", as
   assert.match(text, /agreeing with an approach stays in Plan, and a bare yes answers the question just asked and is not execution approval/)
   assert.match(text, /only when execution intent is clear and substantive decisions are settled/)
   assert.match(text, /Plan ready; execution not yet authorized\./)
-  assert.match(text, /After a declined switch, keep planning and do not re-offer the switch for that request\./)
+  assert.match(text, /do not re-offer it within the same user message\./)
+  assert.match(text, /explicitly asks you to switch or to build, call `switch_to_build` again\./)
   assert.ok(text.includes("Do not create or update plan files unless the user explicitly asks you to"))
   assert.ok(text.includes("Do not modify any other files or ask a subagent to do so."))
   assert.equal(
