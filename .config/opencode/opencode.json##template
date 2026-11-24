@@ -1,15 +1,15 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "amazon-bedrock/us.anthropic.claude-sonnet-5-5",
+  "model": "google/gemini-4-neon",
   "small_model": "amazon-bedrock/us.anthropic.claude-haiku-5-5",
   "default_agent": "plan",
   "share": "disabled",
-  "agent": {
+  "agents": {
     "plan": {
-      "model": "amazon-bedrock/openai.gpt-6.2-sol",
-      "options": {
-        "reasoningEffort": "high"
-      }
+      "model": "google/gemini-4-neon#high"
+    },
+    "build": {
+      "model": "google/gemini-4-neon#high"
     }
   },
   "instructions": [
