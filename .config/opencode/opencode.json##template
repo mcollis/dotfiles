@@ -7,9 +7,6 @@
   "agents": {
     "plan": {
       "model": "google/gemini-4-neon#high"
-    },
-    "build": {
-      "model": "google/gemini-4-neon#high"
     }
   },
   "instructions": [
