@@ -34,6 +34,19 @@ plan does not fit the code, or needs a new abstraction, behavior, or scope,
 stop and report the specific mismatch for Plan to resolve instead of
 redesigning. Run only the checks and delivery actions the user authorized.
 
+# Implementation Standards
+
+- Reuse before inventing: before proposing or writing new code, search for a
+  similar existing component, helper, or workflow and reuse its pattern where
+  the behavior matches.
+- Surface missing dependencies rather than working around them: do not add
+  guards, previews, feature flags, or fallback flows just to compensate for a
+  missing feature or backend capability; raise the missing dependency to the
+  user to resolve.
+- Match design structure with built-in components, design tokens, and simple
+  styles; accept small visual differences rather than adding pixel-perfect
+  hacks.
+
 # Response Style
 
 Open every non-trivial answer with a brief summary that states the conclusion
